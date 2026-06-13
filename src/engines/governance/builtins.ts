@@ -1,0 +1,51 @@
+// ============================================================================
+// Governance Engine: Built-in Policies
+// ============================================================================
+
+import type { GovernancePolicy } from '../../types/index.js';
+
+export const BUILTIN_POLICIES: GovernancePolicy[] = [
+  {
+    id: 'orphan-component',
+    name: 'Orphan Component Detection',
+    severity: 'warn',
+    enforcement: 'advisory',
+    category: 'orphan',
+    condition: {},
+    message: 'Component is orphaned: it has no incoming or outgoing dependencies.',
+  },
+  {
+    id: 'core-feature-decision',
+    name: 'Core Features Require Decisions',
+    severity: 'error',
+    enforcement: 'blocking',
+    category: 'feature',
+    condition: {
+      mustHaveDecision: true,
+      targetTag: 'Core',
+    },
+    message: 'Core features must have at least one documented architectural decision.',
+  },
+  {
+    id: 'cyclic-dependencies',
+    name: 'No Cyclic Dependencies',
+    severity: 'error',
+    enforcement: 'blocking',
+    category: 'architecture',
+    condition: {
+      type: 'no-cyclic-dependencies',
+    },
+    message: 'Cyclic dependency detected. This violates the directed acyclic graph (DAG) principle.',
+  },
+  {
+    id: 'workflow-without-feature',
+    name: 'Workflows Must Belong To Features',
+    severity: 'warn',
+    enforcement: 'advisory',
+    category: 'workflow',
+    condition: {
+      mustBelongToFeature: true,
+    },
+    message: 'Workflow does not belong to any mapped Feature.',
+  }
+];
