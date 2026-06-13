@@ -21,22 +21,23 @@ By maintaining an up-to-date `.project-mind/MEMORY.json` as the single source of
 
 ## 🚀 Quick Start
 
-Initialize Project-Mind in your workspace:
+Initialize Project-Mind in your workspace (Zero-Config):
 
 ```bash
-npx project-mind init --deep-scan --governance
+npx project-mind init
 ```
 
-This commands scaffolds the `.project-mind/` directory, extracts intelligence from your project, and sets up default governance policies.
+This single command automatically deep-scans your repository, infers your framework (React, Next.js, FastAPI, Spring Boot, etc.), sets up default governance policies, and installs the Git hooks.
 
 ### Core Commands
 
 | Command | Description |
 |---------|-------------|
-| `init` | Scaffold the `.project-mind/` directory and memory schema. |
-| `update` | Update memory by rescanning the codebase. |
+| `init` | Scaffold the `.project-mind/` directory, run deep discovery, and install git hooks. |
+| `update` | Fast incremental update (checks `.gitignore` and `git status` cache). |
 | `note <text>` | Record a milestone, decision, or current task focus. |
-| `pack [target]` | Package context into a clipboard-ready payload for LLMs. |
+| `pack [target]` | Package component/feature context (with full source code via `-f`) for LLMs. |
+| `graph show` | Generate surgical Mermaid graphs (`--focus`) without overloading LLM context windows. |
 | `explain <topic>` | Query the memory graph for architecture or workflows. |
 | `lint` | Run the governance engine against architectural policies. |
 | `governance report`| Generate a human-readable `GOVERNANCE.md` report. |
@@ -62,17 +63,17 @@ Project-Mind v1.0.0 guarantees backwards compatibility for its internal schema a
 
 Project-Mind is built to be fast, ensuring minimal friction during active AI coding sessions. Our target performance budgets are:
 
-| Repository Size | Deep Scan / Update Target |
-|-----------------|---------------------------|
-| < 100 files     | < 2 seconds               |
-| < 1,000 files   | < 10 seconds              |
-| < 10,000 files  | < 60 seconds              |
+| Repository Size | Deep Scan | Incremental Update (Cached) |
+|-----------------|-----------|-----------------------------|
+| < 100 files     | < 2s      | < 50ms                      |
+| < 1,000 files   | < 5s      | < 50ms                      |
+| < 10,000 files  | < 30s     | < 50ms                      |
 
 ---
 
 ## 📖 Documentation
 
-For an in-depth dive into how Project-Mind works under the hood, check out the [Architecture Documentation](docs/ARCHITECTURE.md) (coming soon).
+For an in-depth dive into how Project-Mind works under the hood, check out the [Architecture Documentation](docs/ARCHITECTURE.md).
 
 ---
 
