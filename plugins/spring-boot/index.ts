@@ -10,6 +10,8 @@ import type {
   ExplainSection,
 } from '../../src/types/plugin.js';
 import type { Component } from '../../src/types/index.js';
+import { readText } from '../../src/utils/fs.js';
+import path from 'node:path';
 
 const SPRING_BOOT_PLUGIN: ProjectMindPlugin = {
   name: '@project-mind/plugin-spring-boot',
@@ -25,22 +27,35 @@ const SPRING_BOOT_PLUGIN: ProjectMindPlugin = {
 
     // We scan Java files for Spring annotations
     for (const file of sourceFiles) {
-      const content = file;
+      const content = await readText(path.join(context.projectPath, file));
+      if (!content) continue;
       
       let type: Component['type'] = 'other';
-      if (file.includes('Controller')) type = 'controller';
-      else if (file.includes('Service')) type = 'service';
-      else if (file.includes('Repository')) type = 'repository';
-      else if (file.includes('Config')) type = 'config';
+      if (file.includes('Controller') || content.includes('@RestController') || content.includes('@Controller')) type = 'controller';
+      else if (file.includes('Service') || content.includes('@Service')) type = 'service';
+      else if (file.includes('Repository') || content.includes('@Repository')) type = 'repository';
+      else if (file.includes('Config') || content.includes('@Configuration')) type = 'config';
 
       if (type !== 'other') {
         const name = file.split('/').pop()?.replace('.java', '') || 'Unknown';
         const directory = file.substring(0, file.lastIndexOf('/')) || '';
+        
+        // Extract endpoints if it's a controller
+        const endpoints: string[] = [];
+        if (type === 'controller') {
+          const routeRegex = /@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*["']([^"']+)["']\s*\)/g;
+          let match;
+          while ((match = routeRegex.exec(content)) !== null) {
+            endpoints.push(`${match[1].toUpperCase()} ${match[2]}`);
+          }
+        }
+
         components.push({
           name,
           type,
           directory,
           files: [file],
+          endpoints: endpoints.length > 0 ? endpoints : undefined,
           confidence: 0.8,
         });
       }

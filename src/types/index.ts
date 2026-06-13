@@ -277,6 +277,7 @@ export interface Component {
   type: ComponentType;
   directory: string;
   files: string[];
+  endpoints?: string[];
   confidence: number;
 }
 

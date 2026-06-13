@@ -86,7 +86,7 @@ const AI_START_HERE_TEMPLATE = `# 🧠 AI_START_HERE — {{projectName}}
 | **Project** | {{projectName}} |
 | **Scenario** | {{scenario}} |
 {{#if languages.length}}| **Languages** | {{#each languages}}{{name}} ({{percentage}}%){{#unless @last}}, {{/unless}}{{/each}} |{{/if}}
-{{#if frameworks.length}}| **Frameworks** | {{#each frameworks}}{{name}}{{#unless @last}}, {{/unless}}{{/each}} |{{/if}}
+{{#if frameworks.length}}| **Frameworks** | {{#each frameworks}}{{name}} \`v{{version}}\`{{#unless @last}}, {{/unless}}{{/each}} |{{/if}}
 | **Confidence** | {{confidenceEmoji confidence.overall}} {{pct confidence.overall}} |
 
 ---
@@ -130,7 +130,21 @@ const AI_START_HERE_TEMPLATE = `# 🧠 AI_START_HERE — {{projectName}}
 *Architecture not yet detected. Run \`project-mind init --deep-scan\` for analysis.*
 {{/if}}
 
+{{#if inventory.length}}
+### 🧩 Component Inventory
+
+{{#each inventory}}
+**{{layer}}**
+{{#each files}}
+- \`{{this}}\`
+{{/each}}
+
+{{/each}}
+{{/if}}
+
 **Architecture Confidence:** {{confidenceEmoji confidence.architecture}} {{pct confidence.architecture}}
+
+---
 
 ---
 
@@ -142,6 +156,20 @@ const AI_START_HERE_TEMPLATE = `# 🧠 AI_START_HERE — {{projectName}}
 {{/each}}
 {{else}}
 *No features extracted yet.*
+{{/if}}
+
+---
+
+## 📦 Key Dependencies
+
+{{#if dependencies.length}}
+| Dependency | Version | Type | Source |
+|------------|---------|------|--------|
+{{#each dependencies}}
+| **{{name}}** | \`{{version}}\` | {{type}} | {{source}} |
+{{/each}}
+{{else}}
+*No dependencies extracted yet.*
 {{/if}}
 
 ---
@@ -456,6 +484,8 @@ function buildHandoffData(memory: ProjectMemory, delta: any): Record<string, unk
     architecture: memory.architecture,
     workflows: memory.workflows?.slice(0, 5) || [],
     features: memory.features?.slice(0, 10) || [],
+    dependencies: buildDependenciesList(memory.evidence.buildFiles.dependencies),
+    inventory: buildInventoryList(memory.architecture.components),
     timeline: memory.timeline?.slice(-5).reverse() || [],
     recentCommits,
     recentSessions,
@@ -484,4 +514,43 @@ function formatScenario(scenario: string): string {
     case 'fully-tracked': return 'Fully Tracked Project';
     default: return scenario;
   }
+}
+
+function buildDependenciesList(deps: any[]): any[] {
+  if (!deps) return [];
+  // Filter out some internal noise if needed, but for now just return top 30
+  // Sort by name for stability
+  return [...deps]
+    .filter(d => d.type === 'production')
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 30);
+}
+
+function buildInventoryList(components: any[]): any[] {
+  if (!components) return [];
+  const inventoryMap = new Map<string, string[]>();
+
+  for (const comp of components) {
+    if (comp.files && comp.files.length > 0) {
+      const layer = comp.type.charAt(0).toUpperCase() + comp.type.slice(1) + 's';
+      const existing = inventoryMap.get(layer) || [];
+      
+      let item = comp.files[0];
+      if (comp.endpoints && comp.endpoints.length > 0) {
+        item += ` ⚡ [${comp.endpoints.join(', ')}]`;
+      }
+      
+      inventoryMap.set(layer, [...existing, item]);
+    }
+  }
+
+  const inventory = [];
+  for (const [layer, files] of inventoryMap.entries()) {
+    inventory.push({
+      layer,
+      files: files.slice(0, 15) // cap at 15 files per type to save tokens
+    });
+  }
+  
+  return inventory.sort((a, b) => a.layer.localeCompare(b.layer));
 }

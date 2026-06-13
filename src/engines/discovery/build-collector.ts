@@ -235,6 +235,22 @@ async function collectJavaEvidence(
       configFile: 'pom.xml',
       language: 'Java',
     });
+    const pomContent = await readText(path.join(projectPath, 'pom.xml'));
+    if (pomContent) {
+      // Basic regex to find <dependency> blocks
+      const depRegex = /<dependency>\s*<groupId>([^<]+)<\/groupId>\s*<artifactId>([^<]+)<\/artifactId>(?:\s*<version>([^<]+)<\/version>)?/g;
+      let match;
+      while ((match = depRegex.exec(pomContent)) !== null) {
+        const artifactId = match[2];
+        const version = match[3] || 'latest';
+        evidence.dependencies.push({
+          name: artifactId,
+          version: version,
+          type: 'production',
+          source: 'pom.xml',
+        });
+      }
+    }
   }
 
   // build.gradle / build.gradle.kts (Gradle)
@@ -244,11 +260,31 @@ async function collectJavaEvidence(
       configFile: 'build.gradle',
       language: 'Java',
     });
+    await parseGradleDependencies(path.join(projectPath, 'build.gradle'), evidence);
   } else if (await fileExists(path.join(projectPath, 'build.gradle.kts'))) {
     evidence.buildSystems.push({
       name: 'Gradle',
       configFile: 'build.gradle.kts',
       language: 'Kotlin',
+    });
+    await parseGradleDependencies(path.join(projectPath, 'build.gradle.kts'), evidence);
+  }
+}
+
+async function parseGradleDependencies(filePath: string, evidence: BuildEvidence): Promise<void> {
+  const content = await readText(filePath);
+  if (!content) return;
+  // Match `implementation 'org.jsoup:jsoup:1.15.3'` or `implementation("org.jsoup:jsoup:1.15.3")`
+  const depRegex = /(?:implementation|api|compile|testImplementation)\s*\(?['"]([^:'"]+):([^:'"]+)(?::([^:'"]+))?['"]\)?/g;
+  let match;
+  while ((match = depRegex.exec(content)) !== null) {
+    const artifactId = match[2];
+    const version = match[3] || 'latest';
+    evidence.dependencies.push({
+      name: artifactId,
+      version: version,
+      type: 'production',
+      source: path.basename(filePath),
     });
   }
 }

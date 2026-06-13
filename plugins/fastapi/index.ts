@@ -10,6 +10,8 @@ import type {
   ExplainSection,
 } from '../../src/types/plugin.js';
 import type { Component } from '../../src/types/index.js';
+import { readText } from '../../src/utils/fs.js';
+import path from 'node:path';
 
 const FASTAPI_PLUGIN: ProjectMindPlugin = {
   name: '@project-mind/plugin-fastapi',
@@ -24,20 +26,35 @@ const FASTAPI_PLUGIN: ProjectMindPlugin = {
     const sourceFiles = context.evidence.sourceCode.fileCategories.source.filter(f => f.endsWith('.py'));
 
     for (const file of sourceFiles) {
+      const content = await readText(path.join(context.projectPath, file));
+      if (!content) continue;
+      
       let type: Component['type'] = 'other';
-      if (file.includes('routers/')) type = 'controller';
-      else if (file.includes('dependencies')) type = 'service';
+      if (file.includes('routers/') || file.includes('main.py') || content.includes('APIRouter(')) type = 'controller';
+      else if (file.includes('dependencies') || content.includes('Depends(')) type = 'service';
       else if (file.includes('models')) type = 'model';
-      else if (file.includes('schemas')) type = 'dto';
+      else if (file.includes('schemas') || content.includes('BaseModel')) type = 'dto';
 
       if (type !== 'other') {
         const name = file.split('/').pop()?.replace('.py', '') || 'Unknown';
         const directory = file.substring(0, file.lastIndexOf('/')) || '';
+        
+        const endpoints: string[] = [];
+        if (type === 'controller') {
+          // match @app.get("/path") or @router.post('/path')
+          const routeRegex = /@(app|router)\.(get|post|put|delete|patch)\s*\(\s*["']([^"']+)["']/g;
+          let match;
+          while ((match = routeRegex.exec(content)) !== null) {
+            endpoints.push(`${match[2].toUpperCase()} ${match[3]}`);
+          }
+        }
+
         components.push({
           name,
           type,
           directory,
           files: [file],
+          endpoints: endpoints.length > 0 ? endpoints : undefined,
           confidence: 0.8,
         });
       }
