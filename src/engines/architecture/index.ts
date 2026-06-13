@@ -200,40 +200,34 @@ interface DirInfo {
 }
 
 function extractDirectoryNames(evidence: EvidenceSources): DirInfo[] {
+  const dirsMap = new Map<string, Set<string>>();
+
+  // Extract from all categorized files to support any directory depth (fixes Java/MVC depth limitations)
+  const allFiles = [
+    ...evidence.sourceCode.fileCategories.source,
+    ...evidence.sourceCode.fileCategories.test,
+    ...evidence.sourceCode.fileCategories.config,
+    ...evidence.sourceCode.fileCategories.other,
+  ];
+
+  for (const file of allFiles) {
+    const dirPath = file.substring(0, file.lastIndexOf('/'));
+    if (!dirPath) continue;
+
+    const existing = dirsMap.get(dirPath) || new Set();
+    existing.add(file);
+    dirsMap.set(dirPath, existing);
+  }
+
   const dirs: DirInfo[] = [];
-
-  // Extract from directory structure
-  for (const node of evidence.sourceCode.directoryStructure) {
-    if (node.type === 'directory') {
-      const childFiles = node.children
-        ?.filter(c => c.type === 'file')
-        .map(c => `${node.path}/${c.name}`) || [];
-
-      dirs.push({
-        name: node.name.toLowerCase(),
-        path: node.path,
-        fileCount: childFiles.length,
-        files: childFiles,
-      });
-
-      // Also check second-level directories (e.g., src/controllers/)
-      if (node.children) {
-        for (const child of node.children) {
-          if (child.type === 'directory') {
-            const grandchildFiles = child.children
-              ?.filter(c => c.type === 'file')
-              .map(c => `${node.path}/${child.name}/${c.name}`) || [];
-
-            dirs.push({
-              name: child.name.toLowerCase(),
-              path: `${node.path}/${child.name}`,
-              fileCount: grandchildFiles.length,
-              files: grandchildFiles,
-            });
-          }
-        }
-      }
-    }
+  for (const [dirPath, files] of dirsMap.entries()) {
+    const name = dirPath.split('/').pop()?.toLowerCase() || '';
+    dirs.push({
+      name,
+      path: dirPath,
+      fileCount: files.size,
+      files: Array.from(files),
+    });
   }
 
   return dirs;
