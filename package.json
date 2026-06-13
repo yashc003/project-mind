@@ -1,0 +1,55 @@
+{
+  "name": "project-mind",
+  "version": "1.0.0",
+  "description": "Deterministic project intelligence and AI handoff generator",
+  "type": "module",
+  "bin": {
+    "project-mind": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "context",
+    "project-intelligence",
+    "memory",
+    "handoff",
+    "developer-tools",
+    "cli",
+    "git",
+    "architecture",
+    "code-understanding"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.2",
+    "handlebars": "^4.7.8",
+    "ora": "^8.1.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
