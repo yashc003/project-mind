@@ -9,7 +9,7 @@ import type {
   ExplainContext,
   ExplainSection,
 } from '../../src/types/plugin.js';
-import type { Component } from '../../src/types/index.js';
+import type { Component, Workflow } from '../../src/types/index.js';
 import { readText } from '../../src/utils/fs.js';
 import path from 'node:path';
 
@@ -19,10 +19,11 @@ const SPRING_BOOT_PLUGIN: ProjectMindPlugin = {
   projectMindVersion: '>=0.6.0',
   targetFramework: 'Spring Boot',
   priority: 100,
-  capabilities: ['architecture', 'explain'],
+  capabilities: ['architecture', 'explain', 'workflow'],
 
   async analyze(context: PluginContext): Promise<PluginContribution> {
     const components: Component[] = [];
+    const workflows: Workflow[] = [];
     const sourceFiles = context.evidence.sourceCode.fileCategories.source.filter(f => f.endsWith('.java'));
 
     // We scan Java files for Spring annotations
@@ -43,10 +44,33 @@ const SPRING_BOOT_PLUGIN: ProjectMindPlugin = {
         // Extract endpoints if it's a controller
         const endpoints: string[] = [];
         if (type === 'controller') {
-          const routeRegex = /@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*["']([^"']+)["']\s*\)/g;
+          // Check for class-level @RequestMapping base path
+          const requestMappingRegex = /@RequestMapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/g;
+          const mapMatch = requestMappingRegex.exec(content);
+          let basePath = mapMatch && mapMatch[1] ? mapMatch[1] : '';
+          if (basePath && !basePath.startsWith('/')) basePath = '/' + basePath;
+
+          const routeRegex = /@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']\s*\)/g;
           let match;
           while ((match = routeRegex.exec(content)) !== null) {
-            endpoints.push(`${match[1].toUpperCase()} ${match[2]}`);
+            let routePath = match[2] || '';
+            if (routePath && !routePath.startsWith('/')) routePath = '/' + routePath;
+            const fullPath = `${basePath}${routePath}` || '/';
+            const method = match[1].toUpperCase();
+            endpoints.push(`${method} ${fullPath}`);
+
+            workflows.push({
+              id: require('node:crypto').randomBytes(4).toString('hex'),
+              name: `${method} ${fullPath}`,
+              description: `Spring Boot API Route in ${file.split('/').pop()}`,
+              entryPoint: file,
+              dependencyScope: 'file',
+              sourceFile: file.split('/').pop(),
+              components: [],
+              files: [file],
+              confidence: 95,
+              type: 'api-request'
+            });
           }
         }
 
@@ -64,6 +88,7 @@ const SPRING_BOOT_PLUGIN: ProjectMindPlugin = {
     return {
       source: this.name,
       components,
+      workflows,
     };
   },
 

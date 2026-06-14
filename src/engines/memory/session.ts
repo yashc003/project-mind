@@ -61,6 +61,7 @@ export async function listSessions(projectPath: string): Promise<SessionReferenc
     const files = await fg('session-*.json', {
       cwd: paths.sessions,
       onlyFiles: true,
+      followSymbolicLinks: false,
     });
 
     const sessions: SessionReference[] = [];

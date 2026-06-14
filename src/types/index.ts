@@ -413,7 +413,19 @@ export interface CurrentFocus {
   status: 'planning' | 'in-progress' | 'blocked' | 'review' | 'completed';
   blockers: string[];
   expectedModules: string[];
+  actualModules: string[];
+  subTasks: SubTask[];
+  linkedCommits: string[];
+  startedAt: string;
   lastUpdated: string;
+  completedAt?: string;
+}
+
+export interface SubTask {
+  id: string;
+  description: string;
+  status: 'todo' | 'in-progress' | 'done';
+  createdAt: string;
   completedAt?: string;
 }
 
@@ -478,6 +490,8 @@ export interface ProjectMindConfig {
   policies?: GovernancePolicy[];
   /** Governance Policy Exceptions (v0.7) */
   exceptions?: PolicyException[];
+  /** Safe Mode: Disables all plugin execution (Security) */
+  safeMode?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -551,6 +565,8 @@ export interface Workflow {
   name: string;
   description: string;
   entryPoint: string;
+  dependencyScope?: string; // e.g., 'file'
+  sourceFile?: string;      // e.g., 'UserController.ts'
   components: string[];
   files: string[];
   confidence: number;
@@ -676,3 +692,4 @@ export interface DiffDelta {
 }
 
 export type { ProjectMindPlugin, PluginContext, PluginContribution, ExplainContext, ExplainSection, PackContext, PackSection } from './plugin.js';
+export * from './pack.js';

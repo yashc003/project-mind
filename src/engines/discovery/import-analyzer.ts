@@ -210,7 +210,7 @@ function getLanguage(filePath: string): string {
 
 function isRelativeImport(target: string, lang: string): boolean {
   if (lang === 'typescript' || lang === 'javascript') {
-    return target.startsWith('.') || target.startsWith('/');
+    return target.startsWith('.') || target.startsWith('/') || target.startsWith('@/') || target.startsWith('~/');
   }
   if (lang === 'python') {
     return target.startsWith('.');
@@ -223,6 +223,16 @@ function isRelativeImport(target: string, lang: string): boolean {
   return false;
 }
 
+function checkPath(basePath: string, fileSet: Set<string>): string | null {
+  if (fileSet.has(basePath)) return basePath;
+  const exts = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cjs', '/index.ts', '/index.js'];
+  for (const ext of exts) {
+    const testPath = basePath.endsWith(ext) ? basePath : basePath + ext;
+    if (fileSet.has(testPath)) return testPath;
+  }
+  return null;
+}
+
 function resolveRelativeImport(
   sourceFile: string,
   target: string,
@@ -230,22 +240,29 @@ function resolveRelativeImport(
   fileSet: Set<string>
 ): string {
   if (lang === 'typescript' || lang === 'javascript') {
-    // Basic resolution: join path
-    const dir = path.dirname(sourceFile);
-    let resolved = normalizePath(path.join(dir, target));
-    
-    // Try exact
-    if (fileSet.has(resolved)) return resolved;
-    
-    // Try extensions
-    const exts = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cjs', '/index.ts', '/index.js'];
-    for (const ext of exts) {
-      // If target already has an extension, don't append another (unless it's an index)
-      const testPath = target.endsWith(ext) ? resolved : resolved + ext;
-      if (fileSet.has(testPath)) return testPath;
+    let resolved = target;
+
+    // Handle path aliases
+    if (target.startsWith('@/') || target.startsWith('~/')) {
+      const remainder = target.substring(2); // remove @/ or ~/
+      
+      // Typical monorepo/app structures for aliases
+      const possibleRoots = ['src', 'app', 'lib', ''];
+      for (const root of possibleRoots) {
+        const testPath = normalizePath(path.join(root, remainder));
+        const matched = checkPath(testPath, fileSet);
+        if (matched) return matched;
+      }
+      
+      // Fallback
+      resolved = normalizePath(path.join('src', remainder));
+    } else {
+      // Basic resolution: join path
+      const dir = path.dirname(sourceFile);
+      resolved = normalizePath(path.join(dir, target));
     }
     
-    return resolved;
+    return checkPath(resolved, fileSet) || resolved;
   }
   
   if (lang === 'python') {

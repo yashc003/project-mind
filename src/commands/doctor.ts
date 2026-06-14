@@ -3,48 +3,70 @@
 // ============================================================================
 
 import { Command } from 'commander';
-import { loadMemory } from '../engines/memory/index.js';
-import { runDiagnostics } from '../engines/doctor/index.js';
+import { runDoctorChecks } from '../engines/doctor/index.js';
 import logger from '../utils/logger.js';
 import chalk from 'chalk';
 
 export const doctorCommand = new Command('doctor')
-  .description('Diagnose missing intent, context gaps, and orphaned decisions')
+  .description('Diagnose project intelligence health and readiness')
   .option('-p, --project-dir <path>', 'Project directory (defaults to current)')
   .action(async (options) => {
     const projectPath = options.projectDir || process.cwd();
-    const memory = await loadMemory(projectPath);
 
-    if (!memory) {
-      logger.error('Project-Mind is not initialized. Run `project-mind init` first.');
+    logger.box('Project-Mind Doctor');
+    logger.info('Analyzing project intelligence health...\n');
+
+    let results: any[] = [];
+    try {
+      results = await runDoctorChecks(projectPath);
+    } catch (err: any) {
+      logger.error(`Doctor checks threw an unexpected error: ${err.stack || err.message}`);
       process.exit(1);
     }
 
-    logger.section('Project Doctor');
-    logger.info('Analyzing project intelligence health...\n');
+    let criticalFailures = 0;
+    let warnings = 0;
+    let passes = 0;
 
-    const issues = runDiagnostics(memory);
-
-    if (issues.length === 0) {
-      logger.success('No issues found! Your project intelligence is healthy.');
-      return;
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      let title = result.title;
+      if (result.passed) {
+        if (result.message && result.message.includes('⚠')) {
+           // It's a pass but with a warning embedded
+           console.log(`${chalk.yellow('⚠')} ${chalk.bold(title)}`);
+           console.log(`  ${chalk.gray(result.message)}`);
+           warnings++;
+        } else {
+           console.log(`${chalk.green('✓')} ${chalk.bold(title)}`);
+           passes++;
+        }
+      } else {
+        if (result.severity === 'critical') {
+          console.log(`${chalk.red('✗')} ${chalk.bold(title)}`);
+          console.log(`  ${chalk.red(result.message)}`);
+          criticalFailures++;
+        } else {
+          console.log(`${chalk.yellow('⚠')} ${chalk.bold(title)}`);
+          console.log(`  ${chalk.yellow(result.message)}`);
+          warnings++;
+        }
+      }
     }
 
-    let high = 0;
-    let medium = 0;
-    let low = 0;
-
-    issues.forEach(issue => {
-      let icon = '';
-      if (issue.severity === 'high') { icon = chalk.red('🚨 HIGH:'); high++; }
-      if (issue.severity === 'medium') { icon = chalk.yellow('⚠️  MED:'); medium++; }
-      if (issue.severity === 'low') { icon = chalk.blue('ℹ️  LOW:'); low++; }
-
-      console.log(`${icon} [${issue.type}]`);
-      console.log(`  ${issue.message}`);
-      console.log(`  💡 ${chalk.italic(issue.recommendation)}\n`);
-    });
-
-    console.log(chalk.bold(`Diagnostics Complete:`));
-    console.log(`Found ${high} high, ${medium} medium, and ${low} low severity issues.`);
+    console.log(chalk.bold(`\nDiagnostics Complete:`));
+    
+    if (criticalFailures > 0) {
+      console.log(`Found ${chalk.red(criticalFailures + ' critical failures')}, ${chalk.yellow(warnings + ' warnings')}, and ${chalk.green(passes + ' passing')}.`);
+      logger.error('Doctor checks failed due to critical issues.');
+      process.exit(1);
+    } else if (warnings > 0) {
+      console.log(`Found ${chalk.yellow(warnings + ' warnings')} and ${chalk.green(passes + ' passing')}.`);
+      logger.success('Doctor checks passed with warnings.');
+      process.exit(0);
+    } else {
+      console.log(`All ${chalk.green(passes + ' checks')} passed.`);
+      logger.success('No issues found! Your project intelligence is completely healthy.');
+      process.exit(0);
+    }
   });

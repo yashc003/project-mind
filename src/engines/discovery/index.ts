@@ -27,6 +27,7 @@ import type { PluginContribution, PluginContext } from '../../types/plugin.js';
 import { computeConfidence } from '../../utils/confidence.js';
 import { fileExists } from '../../utils/fs.js';
 import logger from '../../utils/logger.js';
+import ora from 'ora';
 
 /**
  * Runs the full discovery pipeline for a project.
@@ -51,7 +52,7 @@ export async function runDiscovery(
   const sourcePromise = collectSourceEvidence(projectPath, config);
 
   logger.step(3, 5, 'Detecting build systems...');
-  const buildPromise = collectBuildEvidence(projectPath);
+  const buildPromise = collectBuildEvidence(projectPath, config);
 
   logger.step(4, 5, 'Scanning documentation...');
   const docPromise = collectDocEvidence(projectPath);
@@ -86,9 +87,16 @@ export async function runDiscovery(
   logger.step(3, 3, 'Extracting features...');
   const features = detectFeatures(evidence, architecture);
 
-  // Step 5: Plugin Engine (v0.6)
+  // 4. Load Plugins (Skipped in Safe Mode)
+  if (!config.safeMode) {
+    ora('Loading plugins...').start().succeed('Plugins loaded');
+    await pluginRegistry.loadPlugins(projectPath);
+  } else {
+    ora('Plugins disabled (Safe Mode)').start().succeed();
+  }
+
+  // 5. Execute Plugins
   logger.section('Plugin Execution');
-  await pluginRegistry.loadPlugins(projectPath);
   const plugins = pluginRegistry.getPlugins();
   
   const pluginContext: PluginContext = {
@@ -165,6 +173,7 @@ async function hasAnySourceFiles(projectPath: string): Promise<boolean> {
     ignore: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
     onlyFiles: true,
     deep: 3,
+    followSymbolicLinks: false
   });
   return files.length > 0;
 }

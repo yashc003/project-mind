@@ -19,6 +19,7 @@ import { getMemoryFilePaths } from '../memory/schema.js';
 import { writeText, readText, fileExists } from '../../utils/fs.js';
 import { compareMemory } from '../graph/diff.js';
 import { promises as fs } from 'node:fs';
+import { computeProgress, detectScopeDrift } from '../focus/index.js';
 import logger from '../../utils/logger.js';
 
 // ---------------------------------------------------------------------------
@@ -96,8 +97,40 @@ const AI_START_HERE_TEMPLATE = `# 🧠 AI_START_HERE — {{projectName}}
 {{#if focusHistory.active}}
 **Task:** {{focusHistory.active.task}}
 **Status:** {{focusHistory.active.status}}
+**Progress:** {{focusProgress.completed}}/{{focusProgress.total}} ({{focusProgress.percentage}}%)
+
+{{#if focusHistory.active.subTasks.length}}
+### Subtasks
+{{#each focusHistory.active.subTasks}}
+- [{{#if (eq status "done")}}x{{else}} {{/if}}] {{description}}
+{{/each}}
+{{/if}}
+
+{{#if focusHistory.active.blockers.length}}
+### Blockers
+{{#each focusHistory.active.blockers}}
+- {{this}}
+{{/each}}
+{{/if}}
+
+{{#if scopeDrift.hasDrift}}
+> [!WARNING]
+> **Scope Drift Detected**
+> Expected: {{#each focusHistory.active.expectedModules}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+> Actually Touched:
+{{#each scopeDrift.extraModules}}
+> - {{this}}
+{{/each}}
+{{/if}}
+
+{{#if focusHistory.active.linkedCommits.length}}
+### Linked Commits
+{{#each focusHistory.active.linkedCommits}}
+- \`{{this}}\`
+{{/each}}
+{{/if}}
 {{else}}
-*No active task. Use \`project-mind note\` to set current focus.*
+*No active task. Use \`project-mind start-feature\` to set current focus.*
 {{/if}}
 
 ---
@@ -472,6 +505,14 @@ function buildHandoffData(memory: ProjectMemory, delta: any): Record<string, unk
     }
   }
 
+  let focusProgress = { completed: 0, total: 0, percentage: 0 };
+  let scopeDrift = { hasDrift: false, extraModules: [] as string[] };
+  
+  if (memory.focusHistory.active) {
+    focusProgress = computeProgress(memory);
+    scopeDrift = detectScopeDrift(memory);
+  }
+
   return {
     projectName: memory.projectName,
     version: memory.version,
@@ -491,6 +532,8 @@ function buildHandoffData(memory: ProjectMemory, delta: any): Record<string, unk
     recentSessions,
     decisions: memory.decisions,
     focusHistory: memory.focusHistory,
+    focusProgress,
+    scopeDrift,
     confidence: memory.confidence,
     keyFiles: Array.from(keyFiles),
     sourceFiles: memory.evidence.sourceCode.totalFiles,

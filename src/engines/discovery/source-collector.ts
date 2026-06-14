@@ -140,10 +140,12 @@ export async function collectSourceEvidence(
   // Categorize files
   const categories = categorizeFiles(allFiles, projectPath);
 
-  // Detect languages and count lines
+  // Detect languages and categorize
   const langMap = new Map<string, { files: string[]; extensions: Set<string>; lines: number }>();
-  let totalLines = 0;
-
+  
+  // First pass: Categorize and prepare files that need line counting
+  const filesToCount: { file: string; fullPath: string; lang: string }[] = [];
+  
   for (const file of allFiles) {
     const ext = path.extname(file).toLowerCase();
     const lang = LANGUAGE_MAP[ext];
@@ -151,17 +153,31 @@ export async function collectSourceEvidence(
       const existing = langMap.get(lang) || { files: [], extensions: new Set(), lines: 0 };
       existing.files.push(file);
       existing.extensions.add(ext);
+      langMap.set(lang, existing);
 
-      // Only count lines for source/test files, not binary
       const fullPath = path.join(projectPath, file);
+      filesToCount.push({ file, fullPath, lang });
+    }
+  }
+
+  // Second pass: Count lines concurrently in chunks to prevent EMFILE limits
+  let totalLines = 0;
+  const BATCH_SIZE = 50;
+  
+  for (let i = 0; i < filesToCount.length; i += BATCH_SIZE) {
+    const batch = filesToCount.slice(i, i + BATCH_SIZE);
+    
+    await Promise.all(batch.map(async ({ fullPath, lang }) => {
       const fileSize = await getFileSizeQuick(fullPath);
       if (fileSize <= config.maxFileSizeBytes) {
         const lines = await countLines(fullPath);
+        
+        // Update counts (synchronous additions within Promise.all are safe in Node.js event loop)
+        const existing = langMap.get(lang)!;
         existing.lines += lines;
         totalLines += lines;
       }
-      langMap.set(lang, existing);
-    }
+    }));
   }
 
   // Build language info sorted by file count

@@ -1,0 +1,92 @@
+# 🧠 Project-Mind: The Ultimate User Manual
+
+Welcome to **Project-Mind**, an advanced contextual intelligence engine designed to instantly decode, document, and map any software project. Whether you are onboarding onto a legacy monolith, exploring a massive monorepo, or preparing a codebase for AI-assisted development, Project-Mind builds a comprehensive "brain" of your project in seconds.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Initializing a Project
+Navigate to your project directory and run the engine:
+```bash
+cd your-project
+npx project-mind init
+```
+
+This command will:
+- 📂 Scan your directory structure
+- 🧬 Analyze your tech stack (package.json, pom.xml, go.mod)
+- 🧩 Map your architecture and dependency graph
+- ⚡ Extract API endpoints, controllers, and models
+- 📝 Generate an `AI_START_HERE.md` document
+
+### 2. Exploring the Output
+Once initialized, Project-Mind creates a `.project-mind/` directory containing the localized intelligence:
+
+- **`AI_START_HERE.md`**: The primary handoff document. This is your master overview containing the Architecture, Tech Stack exact versions, API endpoints, and Component Inventories.
+- **`memory.json`**: The raw, serialized JSON data of your project's intelligence graph. This is meant to be consumed by other AI tools, plugins, and custom scripts.
+
+---
+
+## 🛠️ Core Capabilities & Engines
+
+Project-Mind isn't just a simple file scanner. It uses a suite of heuristic engines to build a deep understanding of your code.
+
+### 1. Discovery Engine
+The Discovery Engine gathers evidence from multiple sources:
+- **Build Files**: Scans `package.json`, `pom.xml`, `build.gradle`, `go.mod`, etc. It supports **Monorepos** (recursively finding all nested packages) and differentiates between core dependencies and `devDependencies`.
+- **Git History**: Analyzes commit frequency, branching strategies, and identifies "Hotspots" (files that change the most often).
+- **Source Code**: Categorizes every file by language and purpose (e.g., config, source, test).
+
+### 2. Architecture Engine
+Without running AST parsers, Project-Mind heuristically infers your architecture:
+- Detects patterns like **MVC**, **Layered**, **Component-Based**, or **Monolith**.
+- Prioritizes Backend frameworks over Frontend dev-dependencies to accurately classify full-stack apps.
+- Groups files into logical layers (`Presentation`, `Business Logic`, `Data Access`, `Infrastructure`).
+
+### 3. Import Analyzer
+Maps the internal dependency graph of your project:
+- Understands relative imports (`./`, `../`) and **Path Aliases** (`@/`, `~/`) out of the box.
+- Detects **Circular Dependencies** that might be causing hard-to-track bugs.
+- Determines which modules are tightly coupled vs. loosely isolated.
+
+### 4. Plugin Ecosystem
+Project-Mind supports framework-specific plugins to extract deep tactical knowledge:
+- **FastAPI / NestJS / Spring Boot**: Automatically detects and extracts API endpoints (e.g., `@app.get('/users')`) directly from your controllers.
+- The plugin system is extensible—you can write your own heuristic regex extractors for custom internal frameworks.
+
+---
+
+## ⚙️ Advanced Configuration
+
+Project-Mind works out of the box, but you can configure its behavior via a `project-mind.config.json` file in your root directory.
+
+```json
+{
+  "maxDepth": 5,
+  "ignoreDirs": ["node_modules", ".git", "dist", "build", "vendor"],
+  "recentCommitCount": 100
+}
+```
+
+### Edge Cases Handled Automatically
+- **Complex Encodings**: If your files are piped using Windows PowerShell (which defaults to UTF-16LE), Project-Mind safely detects the BOM and parses it correctly.
+- **Monorepos**: `maxDepth` scanning ensures that deeply nested TurboRepo or Nx workspaces are fully mapped.
+- **Path Aliases**: Modern TypeScript `@/` path aliases are resolved to their physical files.
+
+---
+
+## 🤖 AI Integration (The "Handoff")
+
+The primary goal of Project-Mind is to bridge the gap between human context and LLMs (like GitHub Copilot, ChatGPT, or Gemini).
+
+When you start a new conversation with an AI coding assistant, simply feed it the `.project-mind/AI_START_HERE.md` file. 
+
+**Why does this matter?**
+Instead of the AI asking you *"What version of React are you on?"* or *"Where are your database models located?"*, it instantly knows:
+1. The exact dependencies you are using (e.g., Spring Boot 3.1.2).
+2. That you are using a Layered Architecture.
+3. Every API endpoint available in the system.
+4. The exact file paths for your Controllers, Services, and Models.
+
+You spend zero time explaining your project. You just start coding.

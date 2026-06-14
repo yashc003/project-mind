@@ -4,11 +4,17 @@
 
 import type { KnowledgeGraph, GraphNode, GraphEdge } from '../../types/index.js';
 
+export interface GraphNodeWithDepth {
+  node: GraphNode;
+  depth: number;
+}
+
 export interface QueryResult {
   topic: string;
   matchedNodes: GraphNode[];
   relatedNodes: GraphNode[];
   edges: GraphEdge[];
+  nodesWithDepth: GraphNodeWithDepth[];
 }
 
 export function queryGraph(graph: KnowledgeGraph, topic: string, depth: number = 2): QueryResult {
@@ -22,16 +28,19 @@ export function queryGraph(graph: KnowledgeGraph, topic: string, depth: number =
   );
 
   if (matchedNodes.length === 0) {
-    return { topic, matchedNodes: [], relatedNodes: [], edges: [] };
+    return { topic, matchedNodes: [], relatedNodes: [], edges: [], nodesWithDepth: [] };
   }
 
   const visitedNodes = new Set<string>(matchedNodes.map(n => n.id));
   const resultEdges = new Set<GraphEdge>();
   
+  const nodesWithDepth: GraphNodeWithDepth[] = matchedNodes.map(node => ({ node, depth: 0 }));
+
   let currentFrontier = [...matchedNodes];
 
   for (let i = 0; i < depth; i++) {
     const nextFrontier: GraphNode[] = [];
+    const currentDepth = i + 1;
 
     for (const node of currentFrontier) {
       // Find all edges where this node is source or target
@@ -46,6 +55,7 @@ export function queryGraph(graph: KnowledgeGraph, topic: string, depth: number =
           const neighborNode = graph.nodes.find(n => n.id === neighborId);
           if (neighborNode) {
             nextFrontier.push(neighborNode);
+            nodesWithDepth.push({ node: neighborNode, depth: currentDepth });
           }
         }
       }
@@ -63,7 +73,8 @@ export function queryGraph(graph: KnowledgeGraph, topic: string, depth: number =
     topic,
     matchedNodes,
     relatedNodes,
-    edges: Array.from(resultEdges)
+    edges: Array.from(resultEdges),
+    nodesWithDepth
   };
 }
 

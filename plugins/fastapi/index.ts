@@ -9,7 +9,7 @@ import type {
   ExplainContext,
   ExplainSection,
 } from '../../src/types/plugin.js';
-import type { Component } from '../../src/types/index.js';
+import type { Component, Workflow } from '../../src/types/index.js';
 import { readText } from '../../src/utils/fs.js';
 import path from 'node:path';
 
@@ -19,10 +19,11 @@ const FASTAPI_PLUGIN: ProjectMindPlugin = {
   projectMindVersion: '>=0.6.0',
   targetFramework: 'FastAPI',
   priority: 200,
-  capabilities: ['architecture', 'explain'],
+  capabilities: ['architecture', 'explain', 'workflow'],
 
   async analyze(context: PluginContext): Promise<PluginContribution> {
     const components: Component[] = [];
+    const workflows: Workflow[] = [];
     const sourceFiles = context.evidence.sourceCode.fileCategories.source.filter(f => f.endsWith('.py'));
 
     for (const file of sourceFiles) {
@@ -45,7 +46,22 @@ const FASTAPI_PLUGIN: ProjectMindPlugin = {
           const routeRegex = /@(app|router)\.(get|post|put|delete|patch)\s*\(\s*["']([^"']+)["']/g;
           let match;
           while ((match = routeRegex.exec(content)) !== null) {
-            endpoints.push(`${match[2].toUpperCase()} ${match[3]}`);
+            const method = match[2].toUpperCase();
+            const routePath = match[3];
+            endpoints.push(`${method} ${routePath}`);
+
+            workflows.push({
+              id: require('node:crypto').randomBytes(4).toString('hex'),
+              name: `${method} ${routePath}`,
+              description: `FastAPI Route in ${file.split('/').pop()}`,
+              entryPoint: file,
+              dependencyScope: 'file',
+              sourceFile: file.split('/').pop(),
+              components: [],
+              files: [file],
+              confidence: 95,
+              type: 'api-request'
+            });
           }
         }
 
@@ -63,6 +79,7 @@ const FASTAPI_PLUGIN: ProjectMindPlugin = {
     return {
       source: this.name,
       components,
+      workflows,
     };
   },
 

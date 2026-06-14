@@ -31,6 +31,10 @@ export function migrateMemory(rawMemory: any): ProjectMemory {
         status: legacyTask.status === 'in-progress' ? 'in-progress' : 'completed',
         blockers: legacyTask.blockers || [],
         expectedModules: legacyTask.expectedModules || [],
+        actualModules: [],
+        subTasks: [],
+        linkedCommits: [],
+        startedAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
       };
 
@@ -68,6 +72,17 @@ export function migrateMemory(rawMemory: any): ProjectMemory {
   if (!rawMemory.focusHistory) {
     rawMemory.focusHistory = { active: null, history: [] };
     hasMigrated = true;
+  } else {
+    // Migrate existing FocusHistory items to have new fields
+    const items = [...(rawMemory.focusHistory.history || [])];
+    if (rawMemory.focusHistory.active) items.push(rawMemory.focusHistory.active);
+    
+    for (const item of items) {
+      if (item.actualModules === undefined) { item.actualModules = []; hasMigrated = true; }
+      if (item.subTasks === undefined) { item.subTasks = []; hasMigrated = true; }
+      if (item.linkedCommits === undefined) { item.linkedCommits = []; hasMigrated = true; }
+      if (item.startedAt === undefined) { item.startedAt = item.lastUpdated || new Date().toISOString(); hasMigrated = true; }
+    }
   }
 
   // ---------------------------------------------------------------------------

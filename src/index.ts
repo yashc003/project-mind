@@ -13,6 +13,7 @@ import { handoffCommand } from './commands/handoff.js';
 import { installHooksCommand } from './commands/install-hooks.js';
 import { startFeatureCommand } from './commands/start-feature.js';
 import { completeFeatureCommand } from './commands/complete-feature.js';
+import { focusCommand } from './commands/focus.js';
 import { importContextCommand } from './commands/import-context.js';
 import { doctorCommand } from './commands/doctor.js';
 import { queryCommand } from './commands/query.js';
@@ -28,6 +29,7 @@ import { lintCommand } from './commands/lint.js';
 import { governanceCommand } from './commands/governance.js';
 import { repairCommand } from './commands/repair.js';
 import { diffCommand } from './commands/diff.js';
+import { installIdeCommand } from './commands/install-ide.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -50,6 +52,7 @@ export function createProgram(): Command {
   program.addCommand(installHooksCommand);
   program.addCommand(startFeatureCommand);
   program.addCommand(completeFeatureCommand);
+  program.addCommand(focusCommand);
   program.addCommand(importContextCommand);
   program.addCommand(doctorCommand);
   program.addCommand(queryCommand);
@@ -65,6 +68,7 @@ export function createProgram(): Command {
   program.addCommand(governanceCommand);
   program.addCommand(repairCommand);
   program.addCommand(diffCommand);
+  program.addCommand(installIdeCommand);
 
   // Global error handling
   program.exitOverride();

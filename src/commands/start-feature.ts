@@ -61,6 +61,10 @@ export const startFeatureCommand = new Command('start-feature')
       status: 'planning',
       blockers: [],
       expectedModules,
+      actualModules: [],
+      subTasks: [],
+      linkedCommits: [],
+      startedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
     };
 

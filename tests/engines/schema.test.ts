@@ -104,10 +104,10 @@ describe('Schema Factories', () => {
     it('returns all expected file paths', () => {
       const paths = getMemoryFilePaths('/project');
       expect(paths.root).toBe('/project/.project-mind');
-      expect(paths.memory).toBe('/project/.project-mind/MEMORY.json');
-      expect(paths.architecture).toBe('/project/.project-mind/ARCHITECTURE.json');
+      expect(paths.memory).toBe('/project/.project-mind/derived/MEMORY.json');
+      expect(paths.architecture).toBe('/project/.project-mind/derived/ARCHITECTURE.json');
       expect(paths.aiStartHere).toBe('/project/.project-mind/AI_START_HERE.md');
-      expect(paths.sessions).toBe('/project/.project-mind/sessions');
+      expect(paths.sessions).toBe('/project/.project-mind/derived/sessions');
     });
   });
 

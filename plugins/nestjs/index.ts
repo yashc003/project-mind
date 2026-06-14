@@ -9,7 +9,7 @@ import type {
   ExplainContext,
   ExplainSection,
 } from '../../src/types/plugin.js';
-import type { Component } from '../../src/types/index.js';
+import type { Component, Workflow } from '../../src/types/index.js';
 import { readText } from '../../src/utils/fs.js';
 import path from 'node:path';
 
@@ -19,10 +19,11 @@ const NESTJS_PLUGIN: ProjectMindPlugin = {
   projectMindVersion: '>=0.6.0',
   targetFramework: 'NestJS',
   priority: 250,
-  capabilities: ['architecture', 'explain'],
+  capabilities: ['architecture', 'explain', 'workflow'],
 
   async analyze(context: PluginContext): Promise<PluginContribution> {
     const components: Component[] = [];
+    const workflows: Workflow[] = [];
     const sourceFiles = context.evidence.sourceCode.fileCategories.source.filter(f => f.endsWith('.ts'));
 
     for (const file of sourceFiles) {
@@ -45,12 +46,32 @@ const NESTJS_PLUGIN: ProjectMindPlugin = {
         
         const endpoints: string[] = [];
         if (type === 'controller') {
-          // match @Get('path') or @Post("path") or @Get()
+          const controllerRegex = /@Controller\(\s*(?:['"]([^'"]+)['"])?\s*\)/g;
+          const ctrlMatch = controllerRegex.exec(content);
+          let basePath = ctrlMatch && ctrlMatch[1] ? ctrlMatch[1] : '';
+          if (basePath && !basePath.startsWith('/')) basePath = '/' + basePath;
+
           const routeRegex = /@(Get|Post|Put|Delete|Patch)\s*\(\s*(?:['"]([^'"]+)['"])?\s*\)/g;
           let match;
           while ((match = routeRegex.exec(content)) !== null) {
-            const routePath = match[2] || '/';
-            endpoints.push(`${match[1].toUpperCase()} ${routePath}`);
+            let routePath = match[2] || '';
+            if (routePath && !routePath.startsWith('/')) routePath = '/' + routePath;
+            const fullPath = `${basePath}${routePath}` || '/';
+            const method = match[1].toUpperCase();
+            endpoints.push(`${method} ${fullPath}`);
+
+            workflows.push({
+              id: require('node:crypto').randomBytes(4).toString('hex'),
+              name: `${method} ${fullPath}`,
+              description: `NestJS API Route in ${file.split('/').pop()}`,
+              entryPoint: file,
+              dependencyScope: 'file',
+              sourceFile: file.split('/').pop(),
+              components: [],
+              files: [file],
+              confidence: 95,
+              type: 'api-request'
+            });
           }
         }
 
@@ -68,6 +89,7 @@ const NESTJS_PLUGIN: ProjectMindPlugin = {
     return {
       source: this.name,
       components,
+      workflows,
     };
   },
 

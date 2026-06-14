@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import type { ProjectMindPlugin } from '../../types/index.js';
 import logger from '../../utils/logger.js';
 import { fileExists, readJson } from '../../utils/fs.js';
+import { isPluginTrusted } from './trust.js';
 
 export interface InstalledPlugin {
   name: string;
@@ -30,7 +31,7 @@ export class PluginRegistry {
     this.plugins = [];
     this.failedPlugins = [];
 
-    const configPath = path.join(projectPath, '.project-mind', 'plugins.json');
+    const configPath = path.join(projectPath, '.project-mind', 'authored', 'plugins.json');
     if (!(await fileExists(configPath))) {
       return;
     }
@@ -53,7 +54,24 @@ export class PluginRegistry {
 
     for (const pluginDef of enabledPlugins) {
       const identifier = pluginDef.path || pluginDef.name;
+      
       try {
+        // Tier 1: Official internal plugins bypass trust check
+        const isOfficial = identifier.startsWith('plugins/');
+        
+        if (!isOfficial) {
+          // Tier 2 & 3: Third-Party and Local plugins require explicit trust
+          const trusted = await isPluginTrusted(identifier);
+          if (!trusted) {
+            logger.error(`\n⚠ Untrusted Plugin Blocked`);
+            logger.info(`Plugin: ${identifier}`);
+            logger.info(`Reason: Local and third-party plugins can execute arbitrary code.`);
+            logger.info(`To trust: npx project-mind plugin trust ${identifier}\n`);
+            this.failedPlugins.push({ name: pluginDef.name, error: 'Untrusted plugin blocked by security policy.' });
+            continue;
+          }
+        }
+
         const plugin = await this.resolveAndLoad(projectPath, identifier);
         // Default priority to 100 if not provided
         plugin.priority = plugin.priority ?? 100;
@@ -75,6 +93,13 @@ export class PluginRegistry {
     // Is it a local path?
     if (identifier.startsWith('.') || identifier.startsWith('/') || identifier.startsWith('C:\\') || identifier.startsWith('D:\\')) {
       const absolutePath = path.resolve(projectPath, identifier);
+      
+      // Path Escaping Protection
+      const relative = path.relative(projectPath, absolutePath);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Security Violation: Local plugin path escapes the project root (${absolutePath})`);
+      }
+
       if (!(await fileExists(absolutePath))) {
         throw new Error(`Local plugin file not found at ${absolutePath}`);
       }

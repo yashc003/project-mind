@@ -54,10 +54,10 @@ export async function detectWorkflows(
   for (const ep of entryPoints) {
     const visitedFiles = new Set<string>();
     const componentChain: string[] = [];
-    const queue: string[] = [ep.filePath];
+    const queue: { file: string; depth: number }[] = [{ file: ep.filePath, depth: 0 }];
 
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const { file: current, depth } = queue.shift()!;
       if (visitedFiles.has(current)) continue;
       visitedFiles.add(current);
 
@@ -66,29 +66,27 @@ export async function detectWorkflows(
         componentChain.push(comp);
       }
 
-      const neighbors = adjList.get(current) || [];
-      for (const n of neighbors) {
-        if (!visitedFiles.has(n)) {
-          queue.push(n);
+      if (depth < 4) { // Hard cap traversal at depth 4
+        const neighbors = adjList.get(current) || [];
+        for (const n of neighbors) {
+          if (!visitedFiles.has(n)) {
+            queue.push({ file: n, depth: depth + 1 });
+          }
         }
       }
     }
 
     if (componentChain.length > 0 || visitedFiles.size > 0) {
-      // Calculate confidence based on depth and component cross-overs
-      let confidence = 50;
-      if (componentChain.length >= 3) confidence += 30; // Passes through multiple layers
-      else if (componentChain.length === 2) confidence += 15;
-      if (visitedFiles.size > 5) confidence += 10;
-
       workflows.push({
         id: crypto.randomBytes(4).toString('hex'),
         name: ep.name,
         description: `Triggered via ${path.basename(ep.filePath)}`,
         entryPoint: ep.filePath,
+        dependencyScope: 'file',
+        sourceFile: path.basename(ep.filePath),
         components: componentChain,
         files: Array.from(visitedFiles),
-        confidence: Math.min(confidence, 95),
+        confidence: ep.confidence,
         type: ep.type,
       });
     }
@@ -105,6 +103,7 @@ interface IdentifiedEntryPoint {
   filePath: string;
   name: string;
   type: WorkflowType;
+  confidence: number;
 }
 
 async function identifyWorkflowEntryPoints(
@@ -120,11 +119,12 @@ async function identifyWorkflowEntryPoints(
       filePath: file,
       name: `${name} (Main App Entry)`,
       type: name === 'cli' ? 'cli-command' : 'generic',
+      confidence: 80,
     });
   }
 
   // 2. Search for controllers / routes / handlers
-  const candidateDirs = ['routes', 'controllers', 'handlers', 'api', 'pages'];
+  const candidateDirs = ['routes', 'controllers', 'handlers', 'api', 'pages', 'app'];
   
   for (const file of evidence.sourceCode.fileCategories.source) {
     const dirName = path.basename(path.dirname(file));
@@ -136,20 +136,58 @@ async function identifyWorkflowEntryPoints(
       const content = await readText(path.join(projectPath, file));
       if (!content) continue;
 
-      let type: WorkflowType = 'generic';
-      let name = path.basename(file, path.extname(file));
+      let foundSpecific = false;
 
-      if (/(?:router|app)\.(?:get|post|put|delete|patch)\(/i.test(content) || /@(?:Get|Post|Put|Delete|Patch)\(/i.test(content)) {
-        type = 'api-request';
-        name = `${name} API Route`;
-      } else if (/(?:on|handle)(?:[A-Z][a-zA-Z0-9]*Event|Click|Submit)/i.test(content) || /addEventListener/i.test(content)) {
-        type = 'event-handler';
-        name = `${name} Event Handler`;
+      // Extract Express/Generic API Routes
+      // e.g. router.get('/users', ...) or app.post('/login', ...)
+      const expressRegex = /(?:router|app)\.(get|post|put|delete|patch)\(['"]([^'"]+)['"]/gi;
+      let match;
+      while ((match = expressRegex.exec(content)) !== null) {
+        const method = match[1].toUpperCase();
+        const routePath = match[2];
+        eps.push({ filePath: file, name: `${method} ${routePath}`, type: 'api-request', confidence: 90 });
+        foundSpecific = true;
       }
 
-      // Avoid duplicates
-      if (!eps.some(e => e.filePath === file)) {
-        eps.push({ filePath: file, name, type });
+      // Next.js App Router (route.ts / page.tsx)
+      const normalizedPath = file.replace(/\\/g, '/');
+      if (normalizedPath.includes('/app/') || normalizedPath.startsWith('app/')) {
+         if (normalizedPath.endsWith('route.ts') || normalizedPath.endsWith('route.js')) {
+            const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+            for (const m of methods) {
+               if (content.includes(`export async function ${m}`) || content.includes(`export function ${m}`)) {
+                  // Reconstruct path from file path
+                  let routePath = normalizedPath.substring(normalizedPath.indexOf('app/') + 4).replace('/route.ts', '').replace('/route.js', '');
+                  routePath = routePath ? `/${routePath}` : '/';
+                  eps.push({ filePath: file, name: `${m} ${routePath}`, type: 'api-request', confidence: 90 });
+                  foundSpecific = true;
+               }
+            }
+         } else if (normalizedPath.endsWith('page.tsx') || normalizedPath.endsWith('page.jsx')) {
+            let routePath = normalizedPath.substring(normalizedPath.indexOf('app/') + 4).replace('/page.tsx', '').replace('/page.jsx', '');
+            routePath = routePath ? `/${routePath}` : '/';
+            eps.push({ filePath: file, name: `Page View ${routePath}`, type: 'ui-flow', confidence: 85 });
+            foundSpecific = true;
+         }
+      }
+
+      if (!foundSpecific) {
+        // Fallback heuristics
+        let type: WorkflowType = 'generic';
+        let name = path.basename(file, path.extname(file));
+
+        if (/(?:router|app)\.(?:get|post|put|delete|patch)\(/i.test(content) || /@(?:Get|Post|Put|Delete|Patch)\(/i.test(content)) {
+          type = 'api-request';
+          name = `${name} API Route`;
+        } else if (/(?:on|handle)(?:[A-Z][a-zA-Z0-9]*Event|Click|Submit)/i.test(content) || /addEventListener/i.test(content)) {
+          type = 'event-handler';
+          name = `${name} Event Handler`;
+        }
+
+        // Avoid duplicates
+        if (!eps.some(e => e.filePath === file && e.name === name)) {
+          eps.push({ filePath: file, name, type, confidence: 60 });
+        }
       }
     }
   }

@@ -16,6 +16,9 @@ export const packCommand = new Command('pack')
   .option('-c, --compact', 'Generate a compact pack (1-2k tokens)')
   .option('-f, --full', 'Generate a full depth pack including source code (5-10k tokens)')
   .option('--type <type>', 'Type of topic: "component", "feature", or "auto"', 'auto')
+  .option('-s, --scope <path>', 'Filter pack geographically to a specific path')
+  .option('-b, --budget <tokens>', 'Maximum tokens for the generated pack', parseInt)
+  .option('--explain-budget', 'Explain token allocation and degradation logic')
   .action(async (topic, options) => {
     const projectPath = process.cwd();
     const memory = await loadMemory(projectPath);
@@ -26,15 +29,19 @@ export const packCommand = new Command('pack')
     }
 
     const isCurrent = topic.toLowerCase() === 'current';
-    const level = options.full ? 'full' : 'compact'; // defaults to compact
+    const level = options.full ? 'full' : 'compact'; 
 
-    logger.info(`Generating ${level} Context Pack for: ${isCurrent ? 'Current Focus' : topic}...`);
+    logger.info(`Generating ${level} Context Relevance Pack for: ${isCurrent ? 'Current Focus' : topic}...`);
+    if (options.scope) logger.info(`Scope boundary: ${options.scope}`);
 
     try {
-      const packContent = await generateContextPack(projectPath, memory, { 
+      const result = await generateContextPack(projectPath, memory, { 
         topic: options.type !== 'auto' ? `${options.type}:${topic}` : topic, 
         isCurrent, 
-        level 
+        level,
+        scope: options.scope,
+        budget: options.budget,
+        explainBudget: options.explainBudget
       });
       
       const packsDir = path.join(projectPath, '.project-mind', 'packs');
@@ -43,12 +50,24 @@ export const packCommand = new Command('pack')
       let filename = isCurrent ? 'current.md' : `${topic.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
       const outPath = path.join(packsDir, filename);
 
-      await writeText(outPath, packContent);
+      await writeText(outPath, result.content);
 
       logger.success(`Context Pack generated successfully!`);
       console.log(`\n  ${chalk.cyan(outPath)}\n`);
-      console.log(chalk.gray(`  Paste the contents of this file into your LLM when switching context.`));
+      
+      if (options.explainBudget && result.allocations) {
+        console.log(chalk.bold('\nBudget Allocation Report:'));
+        let total = 0;
+        for (const alloc of result.allocations) {
+           console.log(`${alloc.section.padEnd(30)} | ${alloc.priority.padEnd(10)} | ${alloc.detailLevel.padEnd(10)} | ${alloc.estimatedTokens} tokens`);
+           total += alloc.estimatedTokens;
+        }
+        console.log(`\nTotal Tokens Estimated: ${total}`);
+      }
+
+      console.log(chalk.gray(`\n  Paste the contents of this file into your LLM when switching context.`));
     } catch (error: any) {
       logger.error(`Failed to generate Context Pack: ${error.message}`);
+      process.exit(1);
     }
   });

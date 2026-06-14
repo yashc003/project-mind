@@ -1,129 +1,111 @@
-// ============================================================================
-// Command: plugin
-// ============================================================================
-
 import { Command } from 'commander';
-import path from 'node:path';
-import { pluginRegistry } from '../engines/plugin/registry.js';
-import { ensureDir, writeJson, fileExists } from '../utils/fs.js';
+import { trustPlugin, untrustPlugin } from '../engines/plugin/trust.js';
 import logger from '../utils/logger.js';
-import chalk from 'chalk';
-import { performance } from 'node:perf_hooks';
 
 export const pluginCommand = new Command('plugin')
   .description('Manage Project-Mind plugins');
 
-// ---------------------------------------------------------------------------
-// List Plugins
-// ---------------------------------------------------------------------------
-pluginCommand.command('list')
-  .description('List installed plugins')
-  .action(async () => {
-    const projectPath = process.cwd();
-    await pluginRegistry.loadPlugins(projectPath);
-
-    const plugins = pluginRegistry.getPlugins();
-    const failed = pluginRegistry.getFailedPlugins();
-
-    console.log(chalk.bold.magenta('\n🔌 Installed Plugins\n'));
-
-    if (plugins.length === 0 && failed.length === 0) {
-      console.log(chalk.gray('No plugins installed.'));
-      return;
-    }
-
-    plugins.forEach(p => {
-      console.log(chalk.bold.cyan(p.name) + chalk.gray(` v${p.version}`));
-      console.log(`  Priority: ${p.priority}`);
-      console.log(`  Capabilities: ${p.capabilities.join(', ')}\n`);
-    });
-
-    if (failed.length > 0) {
-      console.log(chalk.bold.red('Failed to Load:'));
-      failed.forEach(f => {
-        console.log(`  ${f.name}: ${f.error}`);
-      });
-      console.log();
+pluginCommand
+  .command('trust <plugin>')
+  .description('Explicitly trust a local or third-party plugin to execute code')
+  .action(async (plugin: string) => {
+    try {
+      await trustPlugin(plugin);
+    } catch (err: any) {
+      logger.error(`Error trusting plugin: ${err.message}`);
+      process.exit(1);
     }
   });
 
-// ---------------------------------------------------------------------------
-// Doctor
-// ---------------------------------------------------------------------------
-pluginCommand.command('doctor')
-  .description('Debug installed plugins')
-  .action(async () => {
-    const projectPath = process.cwd();
-    await pluginRegistry.loadPlugins(projectPath);
-
-    const plugins = pluginRegistry.getPlugins();
-    const failed = pluginRegistry.getFailedPlugins();
-
-    console.log(chalk.bold.magenta('\n🏥 Plugin Doctor\n'));
-    
-    console.log(`Installed: ${plugins.length + failed.length}`);
-    console.log(`Loaded:    ${chalk.green(plugins.length)}`);
-    console.log(`Failed:    ${failed.length > 0 ? chalk.red(failed.length) : 0}`);
-    console.log(`Conflicts: 0\n`);
-
-    if (failed.length > 0) {
-      console.log(chalk.bold('Failure Details:'));
-      failed.forEach(f => {
-        console.log(`  ${chalk.red(f.name)}`);
-        console.log(`  ${chalk.gray(f.error)}\n`);
-      });
+pluginCommand
+  .command('untrust <plugin>')
+  .description('Remove trust for a previously trusted plugin')
+  .action(async (plugin: string) => {
+    try {
+      await untrustPlugin(plugin);
+    } catch (err: any) {
+      logger.error(`Error untrusting plugin: ${err.message}`);
+      process.exit(1);
     }
   });
 
-// ---------------------------------------------------------------------------
-// Benchmark
-// ---------------------------------------------------------------------------
-pluginCommand.command('benchmark')
-  .description('Benchmark execution time of loaded plugins')
-  .action(async () => {
-    const projectPath = process.cwd();
-    await pluginRegistry.loadPlugins(projectPath);
+pluginCommand
+  .command('inspect <plugin>')
+  .description('Inspect a plugin to audit its capabilities and trust status without executing it')
+  .action(async (pluginIdentifier: string) => {
+    try {
+      const { promises: fs } = await import('node:fs');
+      const crypto = await import('node:crypto');
+      const path = await import('node:path');
+      const { getTrustedPlugins } = await import('../engines/plugin/trust.js');
 
-    const plugins = pluginRegistry.getPlugins();
+      let type = 'Official / Internal';
+      let absolutePath = pluginIdentifier;
+      let sha256 = 'N/A';
+      let name = pluginIdentifier;
+      let capabilities: string[] = [];
+      let isLocal = false;
 
-    if (plugins.length === 0) {
-      console.log(chalk.gray('No plugins loaded to benchmark.'));
-      return;
-    }
-
-    console.log(chalk.bold.magenta('\n⏱️ Plugin Benchmark\n'));
-
-    // Mock context
-    const mockContext = {
-      projectPath,
-      evidence: { git: null as any, sourceCode: { files: [] } as any, buildFiles: null as any, documentation: null as any }
-    };
-
-    for (const plugin of plugins) {
-      if (plugin.analyze && plugin.capabilities.some(c => ['architecture', 'workflow', 'feature'].includes(c))) {
-        const start = performance.now();
-        try {
-          await plugin.analyze(mockContext);
-          const duration = Math.round(performance.now() - start);
-          console.log(`${chalk.cyan(plugin.name)}`);
-          console.log(`  Execution Time: ${duration}ms\n`);
-        } catch (e: any) {
-          console.log(`${chalk.red(plugin.name)}`);
-          console.log(`  Execution Time: ERROR (${e.message})\n`);
-        }
-      } else {
-        console.log(`${chalk.gray(plugin.name)}`);
-        console.log(`  Execution Time: N/A (No analyze capability)\n`);
+      // Determine type and absolute path
+      if (pluginIdentifier.startsWith('.') || pluginIdentifier.startsWith('/') || pluginIdentifier.startsWith('C:\\') || pluginIdentifier.startsWith('D:\\')) {
+        type = 'Local Plugin';
+        absolutePath = path.resolve(process.cwd(), pluginIdentifier);
+        isLocal = true;
+      } else if (!pluginIdentifier.startsWith('plugins/')) {
+        type = 'Third-Party NPM Plugin';
       }
-    }
-  });
 
-// ---------------------------------------------------------------------------
-// Create Plugin Template
-// ---------------------------------------------------------------------------
-pluginCommand.command('create')
-  .description('Scaffold a new plugin')
-  .argument('<name>', 'Name of the plugin')
-  .action(async (name) => {
-    logger.info(`Not implemented yet. Will scaffold plugin: ${name}`);
+      // If local, safely read file and hash
+      if (isLocal) {
+        try {
+          const content = await fs.readFile(absolutePath, 'utf-8');
+          const buffer = await fs.readFile(absolutePath);
+          sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+          
+          // Naive static extraction to prevent RCE
+          const nameMatch = /name:\s*['"]([^'"]+)['"]/.exec(content);
+          if (nameMatch) name = nameMatch[1];
+          
+          const capMatch = /capabilities:\s*\[([^\]]+)\]/.exec(content);
+          if (capMatch) {
+            capabilities = capMatch[1].split(',').map(s => s.replace(/['"\s]/g, '').trim()).filter(Boolean);
+          }
+        } catch {
+          logger.error(`Failed to read local plugin file at ${absolutePath}`);
+          process.exit(1);
+        }
+      }
+
+      // Check trust registry
+      const trustedPlugins = await getTrustedPlugins();
+      const trustInfo = trustedPlugins[pluginIdentifier];
+      const isTrusted = pluginIdentifier.startsWith('plugins/') ? true : !!(trustInfo && trustInfo.trusted);
+
+      logger.blank();
+      logger.box(`Plugin Inspection`);
+      console.log(`Name: ${name}`);
+      console.log(`Type: ${type}`);
+      console.log(`Path: ${absolutePath}`);
+      console.log(`SHA256: ${sha256}`);
+      
+      if (capabilities.length > 0) {
+        console.log(`Capabilities:`);
+        capabilities.forEach(c => console.log(`  - ${c}`));
+      } else if (isLocal) {
+        console.log(`Capabilities: (Could not be statically inferred)`);
+      }
+
+      console.log(`\nTrusted: ${isTrusted ? 'YES' : 'NO'}`);
+      
+      if (trustInfo) {
+        console.log(`Trusted At: ${trustInfo.trustedAt}`);
+        console.log(`Project-Mind Version: ${trustInfo.projectMindVersion}`);
+      }
+      
+      logger.blank();
+
+    } catch (err: any) {
+      logger.error(`Error inspecting plugin: ${err.message}`);
+      process.exit(1);
+    }
   });

@@ -208,27 +208,44 @@ export function validateMemoryVersion(memory: ProjectMemory): boolean {
   return memory.version === SCHEMA_VERSION;
 }
 
-/** Returns the standardized absolute paths for all memory files */
 export function getMemoryFilePaths(projectPath: string): Record<string, string> {
   const base = `${projectPath}/.project-mind`;
+  const authored = `${base}/authored`;
+  const derived = `${base}/derived`;
+
   return {
     root: base,
-    memory: `${base}/MEMORY.json`,
-    memoryPrev: `${base}/MEMORY_PREV.json`,
-    architecture: `${base}/ARCHITECTURE.json`,
-    features: `${base}/FEATURES.json`,
-    timeline: `${base}/TIMELINE.json`,
-    currentFocus: `${base}/CURRENT_FOCUS.json`,
-    agentHistory: `${base}/AGENT_HISTORY.json`,
-    config: `${base}/config.json`,
+    authored: authored,
+    derived: derived,
+
+    // Authored (Source of Truth)
+    decisionsJsonl: `${authored}/decisions.jsonl`,
+    notesJsonl: `${authored}/notes.jsonl`,
+    currentFocusAuthored: `${authored}/focus.json`,
+    config: `${authored}/config.json`,
+    pluginsConfig: `${authored}/plugins.json`,
+
+    // Derived
+    memory: `${derived}/MEMORY.json`,
+    memoryPrev: `${derived}/MEMORY_PREV.json`,
+    architecture: `${derived}/ARCHITECTURE.json`,
+    features: `${derived}/FEATURES.json`,
+    timeline: `${derived}/TIMELINE.json`,
+    workflows: `${derived}/WORKFLOWS.json`,
+    workflowsMd: `${derived}/WORKFLOWS.md`,
+    knowledgeGraphJson: `${derived}/KNOWLEDGE_GRAPH.json`,
+    knowledgeGraphMd: `${derived}/KNOWLEDGE_GRAPH.md`,
+    governanceJson: `${derived}/GOVERNANCE.json`,
+    governanceMd: `${derived}/GOVERNANCE.md`,
+    agentHistory: `${derived}/AGENT_HISTORY.json`,
+    sessions: `${derived}/sessions`,
+
+    // Legacy/Root Generated
     aiStartHere: `${base}/AI_START_HERE.md`,
     aiProtocol: `${base}/AI_PROTOCOL.md`,
     projectContext: `${base}/PROJECT_CONTEXT.md`,
     handoff: `${base}/HANDOFF.md`,
-    decisions: `${base}/DECISIONS.md`,
-    workflows: `${base}/WORKFLOWS.json`,
-    sessions: `${base}/sessions`,
-    knowledgeGraphJson: `${base}/KNOWLEDGE_GRAPH.json`,
-    knowledgeGraphMd: `${base}/KNOWLEDGE_GRAPH.md`,
+    decisionsMd: `${base}/DECISIONS.md`,
+    currentFocusRoot: `${base}/CURRENT_FOCUS.json`, // rendered from authored
   };
 }

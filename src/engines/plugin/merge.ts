@@ -45,7 +45,12 @@ export function mergeContributions(target: MergeTarget, contributions: PluginCon
     // Merge Workflows
     if (contribution.workflows && contribution.workflows.length > 0) {
       for (const newWf of contribution.workflows) {
-        if (!target.workflows.some(w => w.name === newWf.name)) {
+        // If a plugin provides a rich workflow, remove any generic core workflows for the same file
+        target.workflows = target.workflows.filter(
+          w => !(w.entryPoint === newWf.entryPoint && w.name.includes('API Route') && !newWf.name.includes('API Route'))
+        );
+
+        if (!target.workflows.some(w => w.name === newWf.name && w.entryPoint === newWf.entryPoint)) {
           target.workflows.push(newWf);
         }
       }

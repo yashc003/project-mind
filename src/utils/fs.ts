@@ -5,7 +5,7 @@
 // All writes are atomic (write to temp → rename) to prevent corruption.
 // ============================================================================
 
-import { promises as fs } from 'node:fs';
+import { promises as fs, createReadStream } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
@@ -57,11 +57,40 @@ export async function writeText(filePath: string, content: string): Promise<void
 }
 
 /**
- * Reads a text file. Returns null if not found.
+ * Reads a text file, attempting to detect its encoding (UTF-8 or UTF-16LE).
+ * Returns null if not found.
  */
 export async function readText(filePath: string): Promise<string | null> {
   try {
-    return await fs.readFile(filePath, 'utf-8');
+    const buffer = await fs.readFile(filePath);
+
+    // Check for UTF-16LE BOM (FF FE)
+    if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+      return buffer.toString('utf16le');
+    }
+    
+    // Check for UTF-16BE BOM (FE FF)
+    if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+      // Node.js doesn't natively support utf16be, swap bytes and read as le
+      for (let i = 0; i < buffer.length - 1; i += 2) {
+        const temp = buffer[i];
+        buffer[i] = buffer[i + 1];
+        buffer[i + 1] = temp;
+      }
+      return buffer.toString('utf16le');
+    }
+
+    // Check for UTF-8 BOM (EF BB BF)
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+      return buffer.toString('utf8'); // Buffer.toString('utf8') strips BOM automatically
+    }
+
+    // Heuristic for UTF-16LE without BOM (e.g. PowerShell pipe output)
+    if (buffer.length >= 4 && buffer[0] > 0 && buffer[0] < 128 && buffer[1] === 0 && buffer[2] > 0 && buffer[2] < 128 && buffer[3] === 0) {
+      return buffer.toString('utf16le');
+    }
+
+    return buffer.toString('utf8');
   } catch (err: unknown) {
     if (isNodeError(err) && err.code === 'ENOENT') {
       return null;
@@ -107,15 +136,29 @@ export async function getFileSize(filePath: string): Promise<number> {
 }
 
 /**
- * Counts lines in a file. Returns 0 for binary or missing files.
+ * Counts lines in a file by streaming, avoiding holding the full file in memory.
+ * Returns 0 if the file cannot be read.
  */
 export async function countLines(filePath: string): Promise<number> {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    return content.split('\n').length;
-  } catch {
-    return 0;
-  }
+  return new Promise((resolve) => {
+    let count = 0;
+    const stream = createReadStream(filePath, { encoding: 'utf-8' });
+    
+    stream.on('data', (chunk: string) => {
+      // Fast byte-level counting of newlines
+      for (let i = 0; i < chunk.length; ++i) {
+        if (chunk[i] === '\n') count++;
+      }
+    });
+
+    stream.on('end', () => {
+      resolve(count > 0 ? count + 1 : 0); // +1 because last line might not end in \n
+    });
+
+    stream.on('error', () => {
+      resolve(0);
+    });
+  });
 }
 
 /**

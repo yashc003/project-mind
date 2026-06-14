@@ -9,9 +9,11 @@ import { Command } from 'commander';
 import ora from 'ora';
 import logger from '../utils/logger.js';
 import { getProjectRoot } from '../utils/fs.js';
-import { isGitRepo } from '../utils/git.js';
+import { isGitRepo, getRecentChanges } from '../utils/git.js';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
 const execAsync = promisify(exec);
 import {
@@ -26,14 +28,18 @@ import {
 import { recordSession } from '../engines/memory/session.js';
 import { runDiscovery } from '../engines/discovery/index.js';
 import { generateHandoff } from '../engines/handoff/index.js';
+import { detectScopeDrift, linkCommit } from '../engines/focus/index.js';
+import chalk from 'chalk';
 
 export const updateCommand = new Command('update')
   .description('Update project memory from current evidence')
   .option('-p, --project-dir <path>', 'Project directory (defaults to current)')
   .option('-q, --quiet', 'Suppress output (for Git hook usage)')
+  .option('--safe', 'Safe Mode: Disables all plugin execution (Security)')
   .action(async (options) => {
+    let projectPath = '';
     try {
-      const projectPath = options.projectDir
+      projectPath = options.projectDir
         ? options.projectDir
         : await getProjectRoot();
 
@@ -49,7 +55,35 @@ export const updateCommand = new Command('update')
         logger.box('Updating Project Memory');
       }
 
-      const startTime = Date.now();
+      // Lock File Mechanism for Concurrency Protection
+      const derivedDir = path.join(projectPath, '.project-mind', 'derived');
+      const lockFile = path.join(derivedDir, 'UPDATE.lock');
+      
+      try {
+        await fs.mkdir(derivedDir, { recursive: true });
+        
+        // Check if lock file is stale (> 5 minutes)
+        try {
+          const stats = await fs.stat(lockFile);
+          if (Date.now() - stats.mtimeMs > 5 * 60 * 1000) {
+            await fs.unlink(lockFile);
+          }
+        } catch {
+          // File doesn't exist or already removed, which is fine
+        }
+
+        // wx flag fails if the file already exists (atomic lock)
+        await fs.writeFile(lockFile, String(Date.now()), { flag: 'wx' });
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+          if (!options.quiet) {
+            logger.info('Another update is currently running. Skipping redundant update.');
+          }
+          process.exit(0);
+        }
+        throw err;
+      }
+        const startTime = Date.now();
 
       // Load existing memory
       const memory = await loadMemory(projectPath);
@@ -59,6 +93,11 @@ export const updateCommand = new Command('update')
       }
 
       const config = await loadConfig(projectPath);
+      
+      if (options.safe) {
+        config.safeMode = true;
+        if (!options.quiet) logger.info('Running in Safe Mode (plugins disabled)');
+      }
 
       // Incremental Cache Check
       if (await isGitRepo(projectPath)) {
@@ -94,6 +133,46 @@ export const updateCommand = new Command('update')
         updateEvidence(memory, result);
       }
 
+      // --- Focus Git & Drift Integration ---
+      if (memory.focusHistory.active && memory.evidence.git?.recentCommits) {
+        const active = memory.focusHistory.active;
+        let newCommitsLinked = 0;
+
+        for (const commit of memory.evidence.git.recentCommits) {
+          // If the commit happened after the focus started, and isn't linked yet
+          if (new Date(commit.date).getTime() >= new Date(active.startedAt).getTime()) {
+            if (!active.linkedCommits.includes(commit.hash)) {
+              linkCommit(memory, commit.hash);
+              newCommitsLinked++;
+            }
+          }
+        }
+
+        if (newCommitsLinked > 0) {
+          // Fetch files changed since the focus started
+          const changedFiles = await getRecentChanges(projectPath, active.startedAt);
+          changedFiles.forEach((f: string) => {
+            if (!active.actualModules.includes(f)) {
+              active.actualModules.push(f);
+            }
+          });
+
+          if (!options.quiet) {
+            logger.info(`Linked ${newCommitsLinked} new commit(s) to current focus.`);
+            
+            const drift = detectScopeDrift(memory);
+            if (drift.hasDrift) {
+              console.log(chalk.bold.yellow('\n  ⚠ Scope Drift Detected:'));
+              console.log(`    Expected: ${active.expectedModules.join(', ') || 'None'}`);
+              console.log(`    Extra Modules Touched: ${drift.extraModules.length}`);
+              drift.extraModules.slice(0, 5).forEach(m => console.log(`      - ${m}`));
+              if (drift.extraModules.length > 5) console.log(`      ... and ${drift.extraModules.length - 5} more`);
+              console.log();
+            }
+          }
+        }
+      }
+
       // Regenerate handoff documents
       await generateHandoff(projectPath, memory);
 
@@ -125,5 +204,14 @@ export const updateCommand = new Command('update')
         logger.error(`Update failed: ${err instanceof Error ? err.message : String(err)}`);
       }
       process.exit(1);
+    } finally {
+      // Clean up lock file
+      try {
+        const derivedDir = path.join(projectPath, '.project-mind', 'derived');
+        const lockFile = path.join(derivedDir, 'UPDATE.lock');
+        await fs.unlink(lockFile);
+      } catch {
+        // Ignore errors if lock file is already gone
+      }
     }
   });

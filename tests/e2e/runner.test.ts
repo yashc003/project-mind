@@ -52,7 +52,7 @@ describe('E2E Release Certification', () => {
       it('should run init', async () => {
         const { stdout } = await runCmd('init -p .');
         expect(stdout).toContain('Project-Mind initialized');
-        const memoryExists = await fs.stat(path.join(dotProjectMindPath, 'MEMORY.json')).then(() => true).catch(() => false);
+        const memoryExists = await fs.stat(path.join(dotProjectMindPath, 'derived', 'MEMORY.json')).then(() => true).catch(() => false);
         expect(memoryExists).toBe(true);
       }, 30000);
 
@@ -102,6 +102,12 @@ describe('E2E Release Certification', () => {
         const reportPath = path.join(dotProjectMindPath, 'GOVERNANCE.md');
         const reportContent = await fs.readFile(reportPath, 'utf-8');
         expect(reportContent).toContain('Architecture Score');
+      }, 30000);
+
+      it('should run doctor', async () => {
+        const { stdout } = await runCmd('doctor -p .');
+        expect(stdout).toContain('Diagnostics Complete:');
+        expect(stdout).toContain('Authored Schema Valid');
       }, 30000);
 
       it('should verify AI_START_HERE.md contents', async () => {

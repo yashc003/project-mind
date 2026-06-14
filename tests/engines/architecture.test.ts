@@ -35,6 +35,7 @@ describe('Architecture Detection', () => {
         ],
       },
     ];
+    syncFileCategories(evidence);
 
     const arch = detectArchitecture(evidence);
     expect(arch.components.length).toBeGreaterThanOrEqual(4);
@@ -60,6 +61,7 @@ describe('Architecture Detection', () => {
     evidence.buildFiles.frameworks = [
       { name: 'react', version: '18.0', category: 'web', confidence: 95 },
     ];
+    syncFileCategories(evidence);
 
     const arch = detectArchitecture(evidence);
     expect(arch.pattern).toBe('component-based');
@@ -85,6 +87,7 @@ describe('Architecture Detection', () => {
     evidence.buildFiles.frameworks = [
       { name: '@nestjs/core', version: '10.0', category: 'api', confidence: 95 },
     ];
+    syncFileCategories(evidence);
 
     const arch = detectArchitecture(evidence);
     expect(arch.pattern).toBe('layered');
@@ -107,6 +110,7 @@ describe('Architecture Detection', () => {
         ],
       },
     ];
+    syncFileCategories(evidence);
 
     const arch = detectArchitecture(evidence);
     const types = arch.components.map(c => c.type);
@@ -133,6 +137,9 @@ describe('Architecture Detection', () => {
     evidenceWithout.sourceCode.totalFiles = 10;
     evidenceWithout.sourceCode.directoryStructure = [makeDir('src')];
 
+    syncFileCategories(evidenceWithFramework);
+    syncFileCategories(evidenceWithout);
+
     const withFramework = detectArchitecture(evidenceWithFramework);
     const withoutFramework = detectArchitecture(evidenceWithout);
 
@@ -149,4 +156,19 @@ function makeDir(name: string): DirectoryNode {
       { name: 'index.ts', path: `${name}/index.ts`, type: 'file', language: 'TypeScript' },
     ],
   };
+}
+
+function syncFileCategories(evidence: EvidenceSources) {
+  // Helper to sync the mock directory structure into the fileCategories array
+  // which the architecture engine actually uses.
+  const traverse = (nodes: DirectoryNode[]) => {
+    for (const node of nodes) {
+      if (node.type === 'file') {
+        evidence.sourceCode.fileCategories.source.push(node.path);
+      } else if (node.children) {
+        traverse(node.children);
+      }
+    }
+  };
+  traverse(evidence.sourceCode.directoryStructure);
 }

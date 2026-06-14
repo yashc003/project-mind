@@ -55,27 +55,17 @@ export async function initMemory(
   const name = projectName || path.basename(projectPath);
 
   // Create directory structure
-  await ensureDir(paths.root);
+  await ensureDir(paths.authored);
+  await ensureDir(paths.derived);
   await ensureDir(paths.sessions);
 
   // Create initial memory
   const memory = createEmptyMemory(name);
 
   // Write initial files
-  await writeJson(paths.memory, memory);
+  await saveMemory(projectPath, memory);
   await writeJson(paths.config, DEFAULT_CONFIG);
-  await writeJson(paths.architecture, memory.architecture);
-  await writeJson(paths.workflows, memory.workflows);
-  await writeJson(paths.timeline, memory.timeline);
-  await writeJson(paths.features, memory.features);
-  await writeJson(paths.currentFocus, memory.focusHistory);
-  await writeJson(paths.agentHistory, []);
-
-  // Create placeholder markdown files
-  await writeText(paths.decisions, '# Decisions\n\nNo decisions recorded yet.\n');
-  await writeText(paths.workflows.replace('.json', '.md'), renderWorkflowsMarkdown([]));
-  await writeText(paths.aiProtocol, generateAiProtocol(name));
-
+  
   return memory;
 }
 
@@ -89,17 +79,41 @@ export async function initMemory(
 export async function loadMemory(projectPath: string): Promise<ProjectMemory | null> {
   const paths = getMemoryFilePaths(projectPath);
 
-  if (!(await fileExists(paths.memory))) {
+  let memory: ProjectMemory;
+  
+  if (await fileExists(paths.memory)) {
+    const memoryStr = await fs.readFile(paths.memory, 'utf-8');
+    memory = JSON.parse(memoryStr) as ProjectMemory;
+    memory.lastHash = crypto.createHash('md5').update(memoryStr).digest('hex');
+  } else if (await fileExists(`${paths.root}/MEMORY.json`)) {
+    // Legacy migration fallback
+    const memoryStr = await fs.readFile(`${paths.root}/MEMORY.json`, 'utf-8');
+    memory = JSON.parse(memoryStr) as ProjectMemory;
+  } else if (await fileExists(paths.authored)) {
+    // Rebuilding from scratch (e.g. after fresh git clone)
+    memory = createEmptyMemory(path.basename(projectPath));
+  } else {
+    // Not initialized at all
     return null;
   }
 
-  const memoryStr = await fs.readFile(paths.memory, 'utf-8');
-  let memory = JSON.parse(memoryStr) as ProjectMemory;
-  if (memory) {
-    memory = migrateMemory(memory);
-    // Set the concurrency token to the hash of the file read
-    memory.lastHash = crypto.createHash('md5').update(memoryStr).digest('hex');
+  // Always overlay Authored Truth on top of Derived/Legacy memory
+  if (await fileExists(paths.decisionsJsonl)) {
+    const content = await fs.readFile(paths.decisionsJsonl, 'utf-8');
+    memory.decisions = content.split('\n').filter(Boolean).map(line => JSON.parse(line));
   }
+  if (await fileExists(paths.notesJsonl)) {
+    const content = await fs.readFile(paths.notesJsonl, 'utf-8');
+    memory.notes = content.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  }
+  if (await fileExists(paths.currentFocusAuthored)) {
+    const content = await fs.readFile(paths.currentFocusAuthored, 'utf-8');
+    memory.focusHistory.active = JSON.parse(content);
+  }
+
+  // Run schema migrations
+  memory = migrateMemory(memory);
+
   return memory;
 }
 
@@ -114,7 +128,7 @@ export async function loadConfig(projectPath: string): Promise<ProjectMindConfig
 
 /**
  * Saves the full memory state to disk.
- * Also updates ARCHITECTURE.json and DECISIONS.md as separate files.
+ * Separates authored (git-tracked) and derived (git-ignored) state.
  */
 export async function saveMemory(
   projectPath: string,
@@ -122,12 +136,15 @@ export async function saveMemory(
 ): Promise<void> {
   const paths = getMemoryFilePaths(projectPath);
 
-  // Optimistic Concurrency Check
+  await ensureDir(paths.authored);
+  await ensureDir(paths.derived);
+  await ensureDir(paths.sessions);
+
+  // Optimistic Concurrency Check on derived memory
   if (await fileExists(paths.memory)) {
     const existingMemoryStr = await fs.readFile(paths.memory, 'utf-8');
     const existingHash = crypto.createHash('md5').update(existingMemoryStr).digest('hex');
     
-    // If the file on disk has changed since we loaded it, throw an error
     if (memory.lastHash && existingHash !== memory.lastHash) {
       throw new Error('Memory Consistency Error: MEMORY.json was modified by another process. Please reload and try again.');
     }
@@ -147,27 +164,61 @@ export async function saveMemory(
   const { graph, markdown } = await buildKnowledgeGraph(memory, agentHistory, projectPath);
   memory.knowledgeGraph = graph;
 
-  // Generate Mermaid file
-  await writeText(path.join(paths.root, 'KNOWLEDGE_GRAPH.md'), markdown);
-
-  // Remove lastHash before saving to calculate new one accurately on next load
+  // Remove lastHash before saving
   const memoryToSave = { ...memory };
   delete memoryToSave.lastHash;
 
-  // Write all files
+  // 1. Write authored files (Source of Truth)
+  // We use newline delimited JSON for append-only mergeability
+  await writeText(paths.decisionsJsonl, memory.decisions.map(d => JSON.stringify(d)).join('\n') + (memory.decisions.length ? '\n' : ''));
+  await writeText(paths.notesJsonl, memory.notes.map(n => JSON.stringify(n)).join('\n') + (memory.notes.length ? '\n' : ''));
+  await writeJson(paths.currentFocusAuthored, memory.focusHistory.active);
+
+  // 2. Write derived files
   await Promise.all([
     writeJson(paths.memory, memoryToSave),
     writeJson(paths.architecture, memory.architecture),
     writeJson(paths.workflows, memory.workflows),
     writeJson(paths.timeline, memory.timeline),
     writeJson(paths.features, memory.features),
-    writeJson(paths.currentFocus, memory.focusHistory),
-    writeText(paths.decisions, renderDecisionsMarkdown(memory.decisions)),
-    writeText(paths.workflows.replace('.json', '.md'), renderWorkflowsMarkdown(memory.workflows || [])),
+    writeText(paths.decisionsMd, renderDecisionsMarkdown(memory.decisions)),
+    writeText(paths.workflowsMd, renderWorkflowsMarkdown(memory.workflows || [])),
     writeText(paths.aiProtocol, generateAiProtocol(memory.projectName)),
     writeJson(paths.knowledgeGraphJson, memory.knowledgeGraph),
     writeText(paths.knowledgeGraphMd, generateMermaidGraph(memory.knowledgeGraph)),
+    // Mirror currentFocus to root for easy AI access without parsing authored/ logic
+    writeJson(paths.currentFocusRoot, memory.focusHistory.active)
   ]);
+
+  // 3. Clean up legacy root files from flat structure
+  const legacyFiles = [
+    `${paths.root}/MEMORY.json`,
+    `${paths.root}/MEMORY_PREV.json`,
+    `${paths.root}/ARCHITECTURE.json`,
+    `${paths.root}/FEATURES.json`,
+    `${paths.root}/TIMELINE.json`,
+    `${paths.root}/WORKFLOWS.json`,
+    `${paths.root}/WORKFLOWS.md`,
+    `${paths.root}/AGENT_HISTORY.json`,
+    `${paths.root}/KNOWLEDGE_GRAPH.json`,
+    `${paths.root}/KNOWLEDGE_GRAPH.md`,
+    `${paths.root}/GOVERNANCE.json`,
+    `${paths.root}/GOVERNANCE.md`
+  ];
+  
+  const oldPlugins = `${paths.root}/plugins.json`;
+  if (await fileExists(oldPlugins)) {
+    try {
+      await fs.copyFile(oldPlugins, paths.pluginsConfig);
+      await fs.unlink(oldPlugins);
+    } catch (e) {}
+  }
+
+  for (const f of legacyFiles) {
+    if (await fileExists(f)) {
+      try { await fs.unlink(f); } catch (e) {}
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

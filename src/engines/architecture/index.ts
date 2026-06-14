@@ -249,33 +249,46 @@ function detectPattern(
 ): ArchitecturePattern | null {
   const layerTypes = new Set(layers.map(l => l.type));
 
-  // Check for common frameworks that imply patterns
-  const frameworkNames = evidence.buildFiles.frameworks.map(f => f.name.toLowerCase());
+  // Extract frameworks with high confidence (ignore low-confidence devDependencies for core architecture)
+  const coreFrameworks = evidence.buildFiles.frameworks
+    .filter(f => f.confidence >= 80)
+    .map(f => f.name.toLowerCase());
 
-  // React/Vue/Angular → component-based
-  if (frameworkNames.some(f => ['react', 'react-dom', 'vue', 'angular', '@angular/core', 'svelte'].includes(f))) {
-    if (layerTypes.has('api') || layerTypes.has('business-logic')) {
-      return 'layered';
+  const hasBackend = coreFrameworks.some(f => 
+    ['@nestjs/core', 'nestjs', 'spring-boot', 'django', 'flask', 'fastapi', 'express', 'fastify'].includes(f)
+  );
+
+  const hasFrontend = coreFrameworks.some(f => 
+    ['react', 'react-dom', 'vue', 'angular', '@angular/core', 'svelte'].includes(f)
+  );
+
+  // If it has strong backend frameworks
+  if (hasBackend) {
+    if (layerTypes.has('presentation') && layerTypes.has('data-access')) {
+      return 'mvc';
     }
-    return 'component-based';
-  }
-
-  // NestJS, Spring → layered
-  if (frameworkNames.some(f => ['@nestjs/core', 'nestjs', 'spring-boot'].includes(f))) {
     return 'layered';
   }
 
-  // MVC pattern detection
+  // MVC pattern detection from layers alone
   if (layerTypes.has('api') && layerTypes.has('data-access') && layerTypes.has('presentation')) {
     return 'mvc';
   }
 
-  // Layered detection
+  // Layered detection from layers alone
   if (layerTypes.has('api') && layerTypes.has('business-logic') && layerTypes.has('data-access')) {
     return 'layered';
   }
 
-  // Simple modular
+  // If it's heavily frontend-focused
+  if (hasFrontend) {
+    if (layerTypes.has('api') || layerTypes.has('business-logic')) {
+      return 'layered'; // Fullstack frontend (Next.js, Nuxt)
+    }
+    return 'component-based';
+  }
+
+  // Simple modular fallback
   if (layers.length >= 2) {
     return 'modular';
   }

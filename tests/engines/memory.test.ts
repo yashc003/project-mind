@@ -39,9 +39,9 @@ describe('Memory Engine', () => {
       expect(stat.isDirectory()).toBe(true);
 
       // Check files exist
-      const memoryFile = path.join(pmDir, 'MEMORY.json');
-      const configFile = path.join(pmDir, 'config.json');
-      const sessionsDir = path.join(pmDir, 'sessions');
+      const memoryFile = path.join(pmDir, 'derived', 'MEMORY.json');
+      const configFile = path.join(pmDir, 'authored', 'config.json');
+      const sessionsDir = path.join(pmDir, 'derived', 'sessions');
 
       await expect(fs.access(memoryFile)).resolves.toBeUndefined();
       await expect(fs.access(configFile)).resolves.toBeUndefined();

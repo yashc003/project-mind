@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import { loadMemory } from '../engines/memory/index.js';
 import { pluginRegistry } from '../engines/plugin/registry.js';
+import { computeProgress, detectScopeDrift } from '../engines/focus/index.js';
 import logger from '../utils/logger.js';
 import chalk from 'chalk';
 
@@ -22,9 +23,28 @@ export const snapshotCommand = new Command('snapshot')
     console.log(chalk.bold.magenta('\n📸 Project State Snapshot\n'));
 
     // Focus
-    const activeFocus = memory.focusHistory.active?.task || 'None';
-    console.log(chalk.bold('Current Focus:'));
-    console.log(`  ${chalk.cyan(activeFocus)}\n`);
+    const active = memory.focusHistory.active;
+    if (active) {
+      const progress = computeProgress(memory);
+      const drift = detectScopeDrift(memory);
+      
+      console.log(chalk.bold('Current Focus:'));
+      console.log(`  Feature:  ${chalk.cyan(active.feature)}`);
+      console.log(`  Status:   ${active.status}`);
+      console.log(`  Progress: ${progress.completed}/${progress.total} (${progress.percentage}%)`);
+      if (active.blockers.length > 0) {
+        console.log(`  Blockers: ${chalk.red(active.blockers.length)}`);
+      }
+      if (drift.hasDrift) {
+        console.log(`  Scope:    ${chalk.yellow('⚠ Drift Detected')}`);
+      } else {
+        console.log(`  Scope:    ${chalk.green('✅ On Track')}`);
+      }
+      console.log();
+    } else {
+      console.log(chalk.bold('Current Focus:'));
+      console.log(`  ${chalk.cyan('None')}\n`);
+    }
 
     // Features
     const totalFeatures = memory.features?.length || 0;

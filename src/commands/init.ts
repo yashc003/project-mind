@@ -17,17 +17,19 @@ import { generateHandoff } from '../engines/handoff/index.js';
 import { getNextSessionId } from '../engines/memory/index.js';
 import { getMemoryFilePaths } from '../engines/memory/schema.js';
 import { BUILTIN_POLICIES } from '../engines/governance/builtins.js';
-import { writeJson } from '../utils/fs.js';
+import { writeJson, writeText } from '../utils/fs.js';
 import path from 'node:path';
 import { installHook } from './install-hooks.js';
 import { isGitRepo } from '../utils/git.js';
+import { detectAvailableIDEs } from '../engines/ide/index.js';
+import chalk from 'chalk';
 
 export const initCommand = new Command('init')
   .description('Initialize Project-Mind in the current project')
   .option('--no-scan', 'Skip the deep analysis of the project')
   .option('--no-governance', 'Skip scaffolding default architectural governance policies')
-  .option('--no-hooks', 'Skip auto-installing Git post-commit hooks')
   .option('--force', 'Re-initialize even if .project-mind/ already exists')
+  .option('--safe', 'Safe Mode: Disables all plugin execution (Security)')
   .option('-p, --project-dir <path>', 'Project directory (defaults to current)')
   .option('-n, --name <name>', 'Project name (defaults to directory name)')
   .action(async (options) => {
@@ -50,11 +52,21 @@ export const initCommand = new Command('init')
       // Step 1: Initialize memory structure
       const spinner = ora('Creating .project-mind/ directory...').start();
       const memory = await initMemory(projectPath, options.name);
+      
+      // Step 1.5: Generate .gitignore for the memory directory
+      const gitignoreContent = '*\n!authored/\n!authored/**\n!.gitignore\n';
+      const paths = getMemoryFilePaths(projectPath);
+      await writeText(path.join(paths.root, '.gitignore'), gitignoreContent);
+      
       spinner.succeed('Created .project-mind/ directory');
 
       if (options.scan !== false) {
         // Step 2: Run full discovery
         const config = await loadConfig(projectPath);
+        if (options.safe) {
+          config.safeMode = true;
+          logger.info('Running in Safe Mode (plugins disabled)');
+        }
         const result = await runDiscovery(projectPath, config);
 
         // Step 3: Update memory with discovery results
@@ -95,20 +107,7 @@ export const initCommand = new Command('init')
       // Step 6: Save final memory state
       await saveMemory(projectPath, memory);
 
-      // Step 7: Auto-install hooks
-      if (options.hooks !== false && await isGitRepo(projectPath)) {
-        try {
-          const hooksDir = path.join(projectPath, '.git', 'hooks');
-          const hookFile = path.join(hooksDir, 'post-commit');
-          await installHook(hooksDir, hookFile, true);
-          logger.success('Auto-installed Git post-commit hook');
-        } catch (e) {
-          logger.warn('Failed to auto-install Git hook (you can safely ignore this)');
-        }
-      }
-
       // Final output
-      const paths = getMemoryFilePaths(projectPath);
       logger.blank();
       logger.box(
         `Project-Mind initialized successfully!\n` +
@@ -124,6 +123,15 @@ export const initCommand = new Command('init')
       logger.bullet('Run `project-mind install-hooks` to auto-update on every commit');
       logger.bullet('Run `project-mind note --decision "..."` to record decisions');
       logger.bullet('Run `project-mind handoff` to regenerate AI documents');
+
+      const availableIdes = await detectAvailableIDEs(projectPath);
+      if (availableIdes.length > 0) {
+        logger.blank();
+        logger.info(`Detected ${availableIdes.map(i => i.name).join(', ')}.`);
+        logger.info(`To integrate Project-Mind context natively, run:`);
+        console.log(chalk.cyan(`  npx project-mind install-ide`));
+      }
+
       logger.blank();
     } catch (err) {
       logger.error(`Init failed: ${err instanceof Error ? err.message : String(err)}`);
