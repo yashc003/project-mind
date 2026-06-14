@@ -176,25 +176,36 @@ The principles of autonomous logging apply to everything:
 
 Project-Mind includes advanced tools for monitoring project health, evaluating architecture, and measuring the impact of changes.
 
-### 1. The `snapshot` Command
+### 1. The `snapshot` & `diff` Commands
 Think of this as `git status` but for project context. Run:
 ```bash
 project-mind snapshot
 ```
-This prints a clean dashboard directly in your terminal detailing:
-- The **Current Focus** (active tasks and blockers)
-- **Features** (active vs stale)
-- **Recent Decisions**
-- The project's overall **Knowledge Score** (a confidence interval of how well the AI understands the system)
+This prints a clean dashboard directly in your terminal detailing active tasks, stale features, recent decisions, and knowledge scores.
 
-### 2. The `impact` Command (Blast Radius Analysis)
-Before you refactor or modify a core file, you can ask Project-Mind to do a backward traversal of the knowledge graph to show you everything that relies on it.
+If you want to see exactly what structurally changed in the graph since your last run, use:
 ```bash
-project-mind impact "src/utils/logger.ts"
+project-mind diff
 ```
-This lists every Service, Controller, and Feature that explicitly imports or depends on the target file, helping AI agents (and humans) avoid unintended side effects.
 
-### 3. The `governance` Engine
+### 2. Task & Workflow Management
+Project-Mind allows AI agents to explicitly track the lifecycle of their tasks so context is never lost across sessions:
+- `project-mind start-feature "Authentication"`: Isolates focus to a new feature branch.
+- `project-mind focus "Fix JWT Bug"`: Sets an immediate sub-objective.
+- `project-mind complete-feature "Authentication"`: Wraps up the branch and logs the timeline milestone.
+
+### 3. Deep Querying & Insights (`why`, `query`, `impact`)
+When you join a complex codebase, you often need context. Project-Mind gives you deep analytical tools:
+- **`project-mind why "Redux"`**: Queries the decision ledger to explain *why* a specific technology or pattern was chosen, returning the rationale and any rejected alternatives.
+- **`project-mind query "database schemas"`**: Performs a semantic search across the entire memory graph for anything related to your query.
+- **`project-mind impact "src/utils/logger.ts"`** (Blast Radius): Does a backward traversal of the knowledge graph to show you every Service, Controller, and Feature that explicitly imports or depends on the target file, helping avoid unintended side effects.
+
+### 4. Packing Context (`pack`, `handoff`)
+If you want to manually extract context instead of relying on the IDE rules:
+- **`project-mind handoff`**: Manually forces the regeneration of the `AI_START_HERE.md` and `HANDOFF.md` documents.
+- **`project-mind pack "src/utils"`**: Bundles an entire module, folder, or specific feature into a single, LLM-digestible Markdown file (placed in `.project-mind/packs/current.md`). You can use `--budget <tokens>` to prune the scope if the target is too large for context windows.
+
+### 5. The `governance` Engine
 Project-Mind can automatically audit your architecture against strict codebase rules. To check your project for architectural drift or tech debt:
 ```bash
 project-mind lint

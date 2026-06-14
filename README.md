@@ -29,22 +29,56 @@ npx project-mind init
 
 This single command automatically deep-scans your repository, infers your framework (React, Next.js, FastAPI, Spring Boot, etc.), sets up default governance policies, and installs the Git hooks.
 
-### Core Commands
+### 🛠️ Complete Command Reference
 
+#### Setup & Core
 | Command | Description |
 |---------|-------------|
-| `init` | Scaffold the `.project-mind/` directory, run deep discovery, and install git hooks. |
+| `init` | Scaffold the `.project-mind/` directory, run deep discovery, and install hooks. |
 | `update` | Fast incremental update (checks `.gitignore` and `git status` cache). |
-| `note <text>` | Record a milestone, decision, or current task focus. |
-| `pack [target]` | Package component/feature context. Use `--budget <tokens>` to automatically prune scope. |
+| `handoff` | Force regenerate the `AI_START_HERE.md` and `HANDOFF.md` documents. |
+| `install-ide` | Inject strict Project-Mind handoff rules into your Agentic IDE (`.cursorrules`, etc.). |
+| `install-hooks` | Install background Git hooks (`post-commit` and `post-checkout`). |
+
+#### Workflow & Task Tracking
+| Command | Description |
+|---------|-------------|
+| `start-feature <name>` | Start tracking a new feature branch and isolate focus to it. |
+| `complete-feature <name>`| Mark the current active feature as completed and update the timeline. |
+| `focus <task>` | Set the AI's current micro-focus or objective. |
+| `note <text>` | Record a milestone, technical decision, or blocker to the project's long-term memory. |
+
+#### Architecture & Analysis
+| Command | Description |
+|---------|-------------|
 | `graph show` | Generate surgical Mermaid graphs (`--focus`) without overloading LLM context windows. |
 | `explain <topic>` | Query the memory graph for architecture or workflows. |
-| `lint` | Run the governance engine against architectural policies. |
+| `impact <path>` | Blast-radius analysis: find all components that depend on a specific file. |
+| `why <topic>` | Query the project's decision ledger to understand *why* a technical choice was made. |
+| `query <search>` | Perform a semantic search across the entire project memory state. |
+| `recommend` | Get architectural recommendations based on current project anti-patterns. |
+| `pack [target]` | Package component context. Use `--budget <tokens>` to prune scope. |
+
+#### Governance & Auditing
+| Command | Description |
+|---------|-------------|
+| `lint` | Run the governance engine against architectural policies (detects drift). |
 | `governance report`| Generate a human-readable `GOVERNANCE.md` report. |
-| `doctor` | Run 11 sanity checks against context budgets, schema validity, and hooks. |
+| `diff` | Compare the current memory state against the previous run to see what structurally changed. |
+| `snapshot` | Print a clean terminal dashboard of active tasks, blockers, and knowledge scores. |
+
+#### Plugins & Extensions
+| Command | Description |
+|---------|-------------|
+| `plugin trust <path>` | Explicitly trust a local/third-party plugin, recording its SHA-256 hash. |
+| `plugin untrust <path>`| Revoke trust from a local/third-party plugin. |
+| `plugin inspect <path>`| Audit a plugin to see what capabilities it requests before trusting it. |
+
+#### Housekeeping
+| Command | Description |
+|---------|-------------|
+| `doctor` | Run sanity checks against context budgets, schema validity, and hooks. |
 | `repair` | Validate memory schema, migrate older versions, and fix missing artifacts. |
-| `install-ide` | Automatically inject strict Project-Mind handoff rules into your Agentic IDE (`.cursorrules`, etc.). |
-| `install-hooks` | Install background Git hooks (`post-commit` and `post-checkout`) to automatically maintain memory. |
 
 ---
 
