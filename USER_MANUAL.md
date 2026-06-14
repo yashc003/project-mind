@@ -90,6 +90,24 @@ Instead of the AI asking you *"What version of React are you on?"* or *"Where ar
 
 You spend zero time explaining your project. You just start coding.
 
+### Autonomously Logging Decisions
+
+Project-Mind relies on explicit CLI invocation to log decisions, ensuring you maintain full control over your project's memory. Depending on your Agentic IDE, the AI itself can handle this for you:
+
+#### 1. Fully Autonomous Agents (Antigravity, Claude Code, Roo Code, Devin)
+These AI agents have direct permission to run terminal commands on your behalf. Because the `.cursorrules`/`.clinerules` (injected via `install-ide`) tells the AI to use the `project-mind` CLI, **the AI itself will execute the command** to log the decision after you agree on it in chat.
+
+* **You:** "Let's pivot to using Redux for state management instead of Context API."
+* **AI:** "Good idea." *(AI autonomously runs in terminal: `project-mind note "Migrated state management to Redux for better scalability" --decision`)*.
+
+#### 2. Semi-Autonomous Agents (Cursor, Windsurf)
+Cursor and Windsurf do not currently execute background terminal commands automatically without your explicit click. 
+* In this case, the AI will output a code block at the end of the chat saying:
+  ```bash
+  project-mind note "Migrated to Redux" --decision
+  ```
+* You simply click the "Run in Terminal" button provided by your IDE.
+
 ---
 
 ## 🧹 Housekeeping & Troubleshooting
