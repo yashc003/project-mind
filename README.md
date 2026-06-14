@@ -36,12 +36,15 @@ This single command automatically deep-scans your repository, infers your framew
 | `init` | Scaffold the `.project-mind/` directory, run deep discovery, and install git hooks. |
 | `update` | Fast incremental update (checks `.gitignore` and `git status` cache). |
 | `note <text>` | Record a milestone, decision, or current task focus. |
-| `pack [target]` | Package component/feature context (with full source code via `-f`) for LLMs. |
+| `pack [target]` | Package component/feature context. Use `--budget <tokens>` to automatically prune scope. |
 | `graph show` | Generate surgical Mermaid graphs (`--focus`) without overloading LLM context windows. |
 | `explain <topic>` | Query the memory graph for architecture or workflows. |
 | `lint` | Run the governance engine against architectural policies. |
 | `governance report`| Generate a human-readable `GOVERNANCE.md` report. |
+| `doctor` | Run 11 sanity checks against context budgets, schema validity, and hooks. |
 | `repair` | Validate memory schema, migrate older versions, and fix missing artifacts. |
+| `install-ide` | Automatically inject strict Project-Mind handoff rules into your Agentic IDE (`.cursorrules`, etc.). |
+| `install-hooks` | Install background Git hooks (`post-commit` and `post-checkout`) to automatically maintain memory. |
 
 ---
 

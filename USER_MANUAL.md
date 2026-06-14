@@ -50,16 +50,15 @@ Maps the internal dependency graph of your project:
 - Detects **Circular Dependencies** that might be causing hard-to-track bugs.
 - Determines which modules are tightly coupled vs. loosely isolated.
 
-### 4. Plugin Ecosystem
-Project-Mind supports framework-specific plugins to extract deep tactical knowledge:
-- **FastAPI / NestJS / Spring Boot**: Automatically detects and extracts API endpoints (e.g., `@app.get('/users')`) directly from your controllers.
-- The plugin system is extensible—you can write your own heuristic regex extractors for custom internal frameworks.
+### 4. The Agentic IDE Registry
+Project-Mind natively injects explicit operational rules into popular AI Agent IDEs (Cursor, Windsurf, Claude Code, Antigravity, Roo Code, etc.).
+- When you run `project-mind install-ide`, it scans for your IDE's system prompts (e.g. `.cursorrules`) and embeds a strict `START HERE` pointer ensuring the AI *always* reads the Project-Mind memory before doing anything else.
 
 ---
 
 ## ⚙️ Advanced Configuration
 
-Project-Mind works out of the box, but you can configure its behavior via a `project-mind.config.json` file in your root directory.
+Project-Mind works out of the box, but you can configure its behavior via `.project-mind/authored/config.json`.
 
 ```json
 {
@@ -90,3 +89,23 @@ Instead of the AI asking you *"What version of React are you on?"* or *"Where ar
 4. The exact file paths for your Controllers, Services, and Models.
 
 You spend zero time explaining your project. You just start coding.
+
+---
+
+## 🧹 Housekeeping & Troubleshooting
+
+### Readiness Doctor
+Run `project-mind doctor` to validate your project's intelligence health. It runs 11 separate sanity checks across schema validation, IDE integration, Git hook status, Context Budget usage, and Architecture enforcement.
+
+### Schema Repairs
+If you upgrade to a newer version of the CLI and the memory schema has changed:
+```bash
+project-mind repair
+```
+This automatically runs database migrations and fixes any missing JSON keys.
+
+### Git Hooks Uninstallation
+If you wish to stop background background updates on `git commit`, run:
+```bash
+project-mind install-hooks --uninstall
+```

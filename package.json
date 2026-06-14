@@ -32,8 +32,16 @@
     "architecture",
     "code-understanding"
   ],
-  "author": "",
+  "author": "Yash",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yashc003/project-mind.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yashc003/project-mind/issues"
+  },
+  "homepage": "https://github.com/yashc003/project-mind#readme",
   "engines": {
     "node": ">=18.0.0"
   },
