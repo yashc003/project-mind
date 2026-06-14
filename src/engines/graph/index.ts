@@ -163,7 +163,7 @@ export function generateMermaidGraph(graph: KnowledgeGraph, focusTarget?: string
     }
   }
 
-  let mermaid = '```mermaid\ngraph TD;\n';
+  let mermaid = '```mermaid\ngraph LR;\n';
 
   // Styles
   mermaid += '  classDef component fill:#f9f,stroke:#333,stroke-width:2px;\n';

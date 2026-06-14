@@ -54,6 +54,60 @@ Maps the internal dependency graph of your project:
 Project-Mind natively injects explicit operational rules into popular AI Agent IDEs (Cursor, Windsurf, Claude Code, Antigravity, Roo Code, etc.).
 - When you run `project-mind install-ide`, it scans for your IDE's system prompts (e.g. `.cursorrules`) and embeds a strict `START HERE` pointer ensuring the AI *always* reads the Project-Mind memory before doing anything else.
 
+## 🔌 The Plugin System
+
+Project-Mind supports a powerful Plugin System that allows it to go beyond heuristic analysis and perform deep AST-based code understanding for specific frameworks. Plugins can extract API endpoints (`GET /users`), identify specific UI workflows, and inject custom dependency maps.
+
+### What Plugins Do
+- **Framework Depth:** Plugins for frameworks like **FastAPI**, **NestJS**, **Spring Boot**, and **React** can parse files (via regex or AST) to find precisely defined routes, modules, guards, or contexts.
+- **Explain Context:** Plugins can supply deep technical rationale for architecture components when exploring the node graph.
+- **Workflow Generation:** Plugins can automatically map UI user flows to backend API calls.
+
+### How to Use Plugins
+
+Project-Mind features a **Frictionless Plugin System**. You do not need to configure anything to use the official plugins!
+
+1. During `project-mind update`, the Discovery Engine scans your project for framework footprints (e.g., `pom.xml` for Spring Boot, `package.json` for React/NestJS, `requirements.txt` for FastAPI).
+2. If it detects a supported framework, it automatically loads and executes the corresponding official plugin in the background.
+3. The plugin analyzes your code, extracts endpoints, and injects them directly into your `.project-mind/AI_START_HERE.md` Component Inventory.
+
+### Manual Plugin Configuration (Advanced)
+
+If you want to use custom local plugins, or explicitly disable/enable specific plugins, you can create or edit `.project-mind/authored/plugins.json` in your project root:
+   ```json
+   {
+     "installed": [
+       {
+         "name": "@project-mind/plugin-fastapi",
+         "version": "0.6.0",
+         "enabled": true,
+         "path": "plugins/fastapi/index.js"
+       }
+     ]
+   }
+   ```
+
+### Security and Trust Model
+
+Because plugins execute JavaScript code locally on your machine, Project-Mind strictly enforces a **Zero-Trust Security Policy** for any local or third-party plugins. Only official internal plugins (`plugins/*`) run automatically. 
+
+If you attempt to load a third-party or local plugin, it will be **Blocked** with an `⚠ Untrusted Plugin Blocked` warning.
+
+You must explicitly audit and trust a plugin before it can run:
+
+```bash
+# 1. Inspect the plugin to see what files it touches and what it's named
+project-mind plugin inspect ./path/to/my-custom-plugin.js
+
+# 2. Trust the plugin to allow it to execute code during the next update
+project-mind plugin trust ./path/to/my-custom-plugin.js
+
+# 3. If you no longer trust it, untrust it
+project-mind plugin untrust ./path/to/my-custom-plugin.js
+```
+
+Once a plugin is trusted, Project-Mind records its `SHA-256` hash. If the plugin file is modified maliciously later, it will be automatically blocked again until you re-trust the new hash.
+
 ---
 
 ## ⚙️ Advanced Configuration
@@ -115,6 +169,42 @@ The principles of autonomous logging apply to everything:
 1. **Context Fetching on the Fly**: If the AI needs more context mid-conversation, it can run `project-mind pack "target" --budget 10000`, read the file, and continue without asking you for help.
 2. **Task Lifecycle Tracking**: The AI can execute `project-mind start-feature "Bug Fix"` and `project-mind complete-feature "Bug Fix"` as it works, syncing its progress into the persistent memory graph.
 3. **Self-Linting**: Before handing code back to you, the AI can run `project-mind lint` to double-check that its own code doesn't violate your architectural rules.
+
+---
+
+## 🕵️ Advanced CLI Tools
+
+Project-Mind includes advanced tools for monitoring project health, evaluating architecture, and measuring the impact of changes.
+
+### 1. The `snapshot` Command
+Think of this as `git status` but for project context. Run:
+```bash
+project-mind snapshot
+```
+This prints a clean dashboard directly in your terminal detailing:
+- The **Current Focus** (active tasks and blockers)
+- **Features** (active vs stale)
+- **Recent Decisions**
+- The project's overall **Knowledge Score** (a confidence interval of how well the AI understands the system)
+
+### 2. The `impact` Command (Blast Radius Analysis)
+Before you refactor or modify a core file, you can ask Project-Mind to do a backward traversal of the knowledge graph to show you everything that relies on it.
+```bash
+project-mind impact "src/utils/logger.ts"
+```
+This lists every Service, Controller, and Feature that explicitly imports or depends on the target file, helping AI agents (and humans) avoid unintended side effects.
+
+### 3. The `governance` Engine
+Project-Mind can automatically audit your architecture against strict codebase rules. To check your project for architectural drift or tech debt:
+```bash
+project-mind lint
+project-mind governance report
+```
+This generates a `GOVERNANCE.md` report containing:
+- An **Architecture Score** out of 100
+- Warnings for **Orphaned Files** (files not mapped to any component)
+- **Policy Violations** (e.g., if a Presentation Component attempts to import a Database Repository directly)
+- Recorded **Technical Debt** exceptions
 
 ---
 

@@ -12,6 +12,7 @@ import type {
 import type { Component, Workflow } from '../../src/types/index.js';
 import { readText } from '../../src/utils/fs.js';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const FASTAPI_PLUGIN: ProjectMindPlugin = {
   name: '@project-mind/plugin-fastapi',
@@ -51,7 +52,7 @@ const FASTAPI_PLUGIN: ProjectMindPlugin = {
             endpoints.push(`${method} ${routePath}`);
 
             workflows.push({
-              id: require('node:crypto').randomBytes(4).toString('hex'),
+              id: crypto.randomBytes(4).toString('hex'),
               name: `${method} ${routePath}`,
               description: `FastAPI Route in ${file.split('/').pop()}`,
               entryPoint: file,

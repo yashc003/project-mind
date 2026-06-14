@@ -27,59 +27,40 @@ export class PluginRegistry {
   /**
    * Loads all enabled plugins from .project-mind/plugins.json
    */
-  async loadPlugins(projectPath: string): Promise<void> {
+  async loadPlugins(projectPath: string, autoLoadFrameworks?: string[]): Promise<void> {
     this.plugins = [];
     this.failedPlugins = [];
 
+    // 1. Auto-load official plugins based on frameworks
+    const officialMap: Record<string, string> = {
+      'spring-boot': 'plugins/spring-boot/index.js',
+      'fastapi': 'plugins/fastapi/index.js',
+      'react': 'plugins/react/index.js',
+      'nestjs': 'plugins/nestjs/index.js'
+    };
+
+    if (autoLoadFrameworks) {
+      for (const framework of autoLoadFrameworks) {
+        if (officialMap[framework]) {
+           await this.loadSinglePlugin(projectPath, officialMap[framework], `@project-mind/plugin-${framework}`);
+        }
+      }
+    }
+
+    // 2. Load from user config
     const configPath = path.join(projectPath, '.project-mind', 'authored', 'plugins.json');
-    if (!(await fileExists(configPath))) {
-      return;
-    }
-
-    let config: PluginsConfig | null;
-    try {
-      config = await readJson<PluginsConfig>(configPath);
-    } catch (error) {
-      logger.error('Failed to parse plugins.json');
-      return;
-    }
-
-    if (!config) return;
-
-    if (!config.installed || !Array.isArray(config.installed)) {
-      return;
-    }
-
-    const enabledPlugins = config.installed.filter(p => p.enabled);
-
-    for (const pluginDef of enabledPlugins) {
-      const identifier = pluginDef.path || pluginDef.name;
-      
+    if (await fileExists(configPath)) {
       try {
-        // Tier 1: Official internal plugins bypass trust check
-        const isOfficial = identifier.startsWith('plugins/');
-        
-        if (!isOfficial) {
-          // Tier 2 & 3: Third-Party and Local plugins require explicit trust
-          const trusted = await isPluginTrusted(identifier);
-          if (!trusted) {
-            logger.error(`\n⚠ Untrusted Plugin Blocked`);
-            logger.info(`Plugin: ${identifier}`);
-            logger.info(`Reason: Local and third-party plugins can execute arbitrary code.`);
-            logger.info(`To trust: npx project-mind plugin trust ${identifier}\n`);
-            this.failedPlugins.push({ name: pluginDef.name, error: 'Untrusted plugin blocked by security policy.' });
-            continue;
+        const config = await readJson<PluginsConfig>(configPath);
+        if (config && config.installed && Array.isArray(config.installed)) {
+          const enabledPlugins = config.installed.filter(p => p.enabled);
+          for (const pluginDef of enabledPlugins) {
+            const identifier = pluginDef.path || pluginDef.name;
+            await this.loadSinglePlugin(projectPath, identifier, pluginDef.name);
           }
         }
-
-        const plugin = await this.resolveAndLoad(projectPath, identifier);
-        // Default priority to 100 if not provided
-        plugin.priority = plugin.priority ?? 100;
-        this.plugins.push(plugin);
-        logger.success(`Loaded plugin: ${plugin.name} v${plugin.version}`);
-      } catch (error: any) {
-        logger.error(`Failed to load plugin "${identifier}": ${error.message}`);
-        this.failedPlugins.push({ name: pluginDef.name, error: error.message });
+      } catch (error) {
+        logger.error('Failed to parse plugins.json');
       }
     }
 
@@ -87,11 +68,54 @@ export class PluginRegistry {
     this.plugins.sort((a, b) => (a.priority!) - (b.priority!));
   }
 
+  private async loadSinglePlugin(projectPath: string, identifier: string, name: string): Promise<void> {
+    try {
+      // Tier 1: Official internal plugins bypass trust check
+      const isOfficial = identifier.startsWith('plugins/');
+      
+      if (!isOfficial) {
+        // Tier 2 & 3: Third-Party and Local plugins require explicit trust
+        const trusted = await isPluginTrusted(identifier);
+        if (!trusted) {
+          logger.error(`\n⚠ Untrusted Plugin Blocked`);
+          logger.info(`Plugin: ${identifier}`);
+          logger.info(`Reason: Local and third-party plugins can execute arbitrary code.`);
+          logger.info(`To trust: npx project-mind plugin trust ${identifier}\n`);
+          this.failedPlugins.push({ name, error: 'Untrusted plugin blocked by security policy.' });
+          return;
+        }
+      }
+
+      // Check if already loaded to avoid duplicates
+      if (this.plugins.some(p => p.name.includes(identifier.split('/')[1]))) {
+        return; // Already loaded via auto-load or config
+      }
+
+      const plugin = await this.resolveAndLoad(projectPath, identifier);
+      // Default priority to 100 if not provided
+      plugin.priority = plugin.priority ?? 100;
+      
+      // Double check by actual plugin name
+      if (!this.plugins.some(p => p.name === plugin.name)) {
+        this.plugins.push(plugin);
+        logger.success(`Loaded plugin: ${plugin.name} v${plugin.version}`);
+      }
+    } catch (error: any) {
+      logger.error(`Failed to load plugin "${identifier}": ${error.message}`);
+      this.failedPlugins.push({ name, error: error.message });
+    }
+  }
+
   private async resolveAndLoad(projectPath: string, identifier: string): Promise<ProjectMindPlugin> {
     let importPath = identifier;
 
+    // Official plugins resolution (bypasses local resolution)
+    if (identifier.startsWith('plugins/')) {
+      const url = new URL(`./${identifier}`, import.meta.url);
+      importPath = url.href;
+    }
     // Is it a local path?
-    if (identifier.startsWith('.') || identifier.startsWith('/') || identifier.startsWith('C:\\') || identifier.startsWith('D:\\')) {
+    else if (identifier.startsWith('.') || identifier.startsWith('/') || identifier.startsWith('C:\\') || identifier.startsWith('D:\\')) {
       const absolutePath = path.resolve(projectPath, identifier);
       
       // Path Escaping Protection

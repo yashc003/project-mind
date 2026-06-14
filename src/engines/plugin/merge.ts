@@ -34,8 +34,32 @@ export function mergeContributions(target: MergeTarget, contributions: PluginCon
     if (contribution.components && contribution.components.length > 0) {
       const allComponents = target.architecture.components || [];
       for (const newComp of contribution.components) {
-        // Simple distinct merge based on name
-        if (!allComponents.some(c => c.name === newComp.name)) {
+        // Match by name OR if the existing component already claims one of these files
+        const existingComp = allComponents.find(c => 
+          c.name === newComp.name || 
+          c.files.some(f => newComp.files.includes(f))
+        );
+        if (existingComp) {
+          // Merge files
+          for (const file of newComp.files) {
+            if (!existingComp.files.includes(file)) {
+              existingComp.files.push(file);
+            }
+          }
+          // Merge endpoints
+          if (newComp.endpoints && newComp.endpoints.length > 0) {
+            existingComp.endpoints = existingComp.endpoints || [];
+            for (const ep of newComp.endpoints) {
+              if (!existingComp.endpoints.includes(ep)) {
+                existingComp.endpoints.push(ep);
+              }
+            }
+          }
+          // Optionally upgrade confidence
+          if (newComp.confidence > existingComp.confidence) {
+            existingComp.confidence = newComp.confidence;
+          }
+        } else {
           allComponents.push(newComp);
         }
       }

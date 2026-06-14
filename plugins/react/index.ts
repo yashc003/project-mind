@@ -11,6 +11,9 @@ import type {
   ExplainSection,
 } from '../../src/types/plugin.js';
 import type { Component, Workflow } from '../../src/types/index.js';
+import { readText } from '../../src/utils/fs.js';
+import path from 'node:path';
+import crypto from 'node:crypto';
 
 const REACT_PLUGIN: ProjectMindPlugin = {
   name: '@project-mind/plugin-react',
@@ -45,8 +48,8 @@ const REACT_PLUGIN: ProjectMindPlugin = {
       }
 
       // Workflow detection: Extract precise UI events instead of generic flows
-      const fullPath = require('node:path').join(context.projectPath, file);
-      const fs = require('node:fs');
+      const fullPath = path.join(context.projectPath, file);
+      const fs = await import('node:fs');
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
 
@@ -56,7 +59,7 @@ const REACT_PLUGIN: ProjectMindPlugin = {
         while ((match = submitRegex.exec(content)) !== null) {
           const handler = match[1].replace('() =>', '').trim();
           workflows.push({
-            id: require('node:crypto').randomBytes(4).toString('hex'),
+            id: crypto.randomBytes(4).toString('hex'),
             name: `Form Submission: ${handler}`,
             description: `Triggered via onSubmit in ${file.split('/').pop()}`,
             entryPoint: file,
@@ -76,7 +79,7 @@ const REACT_PLUGIN: ProjectMindPlugin = {
           // Filter out inline arrow functions that are too simple
           if (handler && !handler.includes('set') && handler.length > 3) {
             workflows.push({
-              id: require('node:crypto').randomBytes(4).toString('hex'),
+              id: crypto.randomBytes(4).toString('hex'),
               name: `Button Click: ${handler}`,
               description: `Triggered via onClick in ${file.split('/').pop()}`,
               entryPoint: file,

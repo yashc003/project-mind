@@ -90,7 +90,8 @@ export async function runDiscovery(
   // 4. Load Plugins (Skipped in Safe Mode)
   if (!config.safeMode) {
     ora('Loading plugins...').start().succeed('Plugins loaded');
-    await pluginRegistry.loadPlugins(projectPath);
+    const detectedFrameworks = evidence.buildFiles.frameworks.map(f => f.name.toLowerCase());
+    await pluginRegistry.loadPlugins(projectPath, detectedFrameworks);
   } else {
     ora('Plugins disabled (Safe Mode)').start().succeed();
   }
@@ -168,7 +169,7 @@ async function detectScenario(projectPath: string): Promise<ProjectScenario> {
 
 async function hasAnySourceFiles(projectPath: string): Promise<boolean> {
   const fg = (await import('fast-glob')).default;
-  const files = await fg('**/*.{js,ts,py,java,go,rs,cs,rb,php,c,cpp,swift}', {
+  const files = await fg('**/*.{js,ts,py,java,kt,go,rs,cs,rb,php,c,cpp,swift}', {
     cwd: projectPath,
     ignore: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
     onlyFiles: true,

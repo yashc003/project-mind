@@ -14,7 +14,7 @@ By maintaining an up-to-date `.project-mind/MEMORY.json` as the single source of
 * **🏗️ Architecture Detection:** Automatically infers layers, patterns, and component structures.
 * **⚖️ Governance & Linter:** Enforces architectural policies, manages tech debt, and computes an Architecture Score.
 * **🤖 AI Handoffs:** Generates `AI_START_HERE.md` and `HANDOFF.md` to instantly onboard new AI sessions.
-* **🧩 Plugin System:** Extensible via `.ts`/`.js` plugins for custom metrics, policies, and integrations.
+* **🧩 Frictionless Plugin System:** Extensible via plugins for custom metrics, policies, and integrations. Official plugins for React, FastAPI, Spring Boot, and NestJS auto-load magically with zero configuration based on detected frameworks!
 * **🛡️ E2E Validated:** Rigorously tested against Node, Spring Boot, React, and FastAPI project structures.
 
 ---

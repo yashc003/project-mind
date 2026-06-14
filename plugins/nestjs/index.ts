@@ -12,6 +12,7 @@ import type {
 import type { Component, Workflow } from '../../src/types/index.js';
 import { readText } from '../../src/utils/fs.js';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const NESTJS_PLUGIN: ProjectMindPlugin = {
   name: '@project-mind/plugin-nestjs',
@@ -61,7 +62,7 @@ const NESTJS_PLUGIN: ProjectMindPlugin = {
             endpoints.push(`${method} ${fullPath}`);
 
             workflows.push({
-              id: require('node:crypto').randomBytes(4).toString('hex'),
+              id: crypto.randomBytes(4).toString('hex'),
               name: `${method} ${fullPath}`,
               description: `NestJS API Route in ${file.split('/').pop()}`,
               entryPoint: file,
