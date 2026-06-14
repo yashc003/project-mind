@@ -108,6 +108,36 @@ Cursor and Windsurf do not currently execute background terminal commands automa
   ```
 * You simply click the "Run in Terminal" button provided by your IDE.
 
+### Other Autonomous Capabilities
+
+The principles of autonomous logging apply to everything:
+
+1. **Context Fetching on the Fly**: If the AI needs more context mid-conversation, it can run `project-mind pack "target" --budget 10000`, read the file, and continue without asking you for help.
+2. **Task Lifecycle Tracking**: The AI can execute `project-mind start-feature "Bug Fix"` and `project-mind complete-feature "Bug Fix"` as it works, syncing its progress into the persistent memory graph.
+3. **Self-Linting**: Before handing code back to you, the AI can run `project-mind lint` to double-check that its own code doesn't violate your architectural rules.
+
+---
+
+## 📊 Visualizing the Architecture Graph
+
+Project-Mind can generate visual node-based dependency graphs using Mermaid Markdown.
+
+```bash
+project-mind graph show
+```
+
+*(You can also use `--focus <component-name>` to generate a smaller, more specific graph instead of the entire project).*
+
+### Viewing the Output
+
+1. **The Mermaid Live Editor (Fastest in Browser)**
+   - Copy the terminal output and paste it into [mermaid.live](https://mermaid.live/).
+2. **VS Code / IDE Preview (Fastest Local)**
+   - Save the output to an `architecture.md` file.
+   - Use an extension like "Markdown Preview Mermaid Support" to view it instantly in your IDE.
+3. **GitHub / GitLab**
+   - Both platforms natively support Mermaid. Just paste the output into any Markdown file and push it.
+
 ---
 
 ## 🧹 Housekeeping & Troubleshooting
