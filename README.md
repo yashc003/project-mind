@@ -14,8 +14,8 @@ By maintaining an up-to-date `.project-mind/MEMORY.json` as the single source of
 * **🏗️ Architecture Detection:** Automatically infers layers, patterns, and component structures.
 * **⚖️ Governance & Linter:** Enforces architectural policies, manages tech debt, and computes an Architecture Score.
 * **🤖 AI Handoffs:** Generates `AI_START_HERE.md` and `HANDOFF.md` to instantly onboard new AI sessions.
-* **🧩 Frictionless Plugin System:** Extensible via plugins for custom metrics, policies, and integrations. Official plugins for React, FastAPI, Spring Boot, and NestJS auto-load magically with zero configuration based on detected frameworks!
-* **🛡️ E2E Validated:** Rigorously tested against Node, Spring Boot, React, and FastAPI project structures.
+* **🧩 Frictionless Plugin System:** Extensible via plugins for custom metrics, policies, and integrations. Official plugins for **React, FastAPI, Spring Boot, NestJS, Express, Django, Laravel, and SvelteKit** auto-load magically with zero configuration based on detected frameworks!
+* **🛡️ E2E Validated:** Rigorously tested against Node, Spring Boot, React, FastAPI, Express, Django, Laravel, and SvelteKit project structures.
 
 ---
 
@@ -27,7 +27,7 @@ Initialize Project-Mind in your workspace (Zero-Config):
 npx project-mind init
 ```
 
-This single command automatically deep-scans your repository, infers your framework (React, Next.js, FastAPI, Spring Boot, etc.), sets up default governance policies, and installs the Git hooks.
+This single command automatically deep-scans your repository, infers your framework (React, Next.js, FastAPI, Spring Boot, Django, Laravel, SvelteKit, etc.), sets up default governance policies, and installs the Git hooks.
 
 ### 🛠️ Complete Command Reference
 
@@ -73,6 +73,8 @@ This single command automatically deep-scans your repository, infers your framew
 | `plugin trust <path>` | Explicitly trust a local/third-party plugin, recording its SHA-256 hash. |
 | `plugin untrust <path>`| Revoke trust from a local/third-party plugin. |
 | `plugin inspect <path>`| Audit a plugin to see what capabilities it requests before trusting it. |
+
+*Want to build your own plugin? Check out our `templates/plugin-template/` directory to create custom extractors for your team's proprietary frameworks!*
 
 #### Housekeeping
 | Command | Description |
