@@ -122,4 +122,4 @@ We welcome contributions! Please open an issue or submit a pull request. Make su
 
 ## 📄 License
 
-MIT License.
+Apache 2.0 License. See [LICENSE](LICENSE) for more details.
