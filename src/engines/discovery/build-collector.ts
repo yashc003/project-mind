@@ -70,6 +70,10 @@ const FRAMEWORK_FINGERPRINTS: Record<string, {
   'sequelize': { category: 'database', confidence: 90 },
   'drizzle-orm': { category: 'database', confidence: 90 },
   'knex': { category: 'database', confidence: 85 },
+  // PHP
+  'laravel': { category: 'api', confidence: 95 },
+  'laravel/framework': { category: 'api', confidence: 95 },
+  '@sveltejs/kit': { category: 'web', confidence: 95 },
 };
 
 // ---------------------------------------------------------------------------
@@ -105,7 +109,8 @@ export async function collectBuildEvidence(projectPath: string, config: ProjectM
     '**/*.sln',
     '**/Dockerfile',
     '**/docker-compose.yml',
-    '**/docker-compose.yaml'
+    '**/docker-compose.yaml',
+    '**/composer.json'
   ], {
     cwd: projectPath,
     ignore: ignorePatterns,
@@ -123,6 +128,7 @@ export async function collectBuildEvidence(projectPath: string, config: ProjectM
     collectRustEvidence(projectPath, evidence, buildFiles.filter(f => f.endsWith('Cargo.toml'))),
     collectDotNetEvidence(projectPath, evidence, buildFiles.filter(f => f.endsWith('.csproj') || f.endsWith('.sln'))),
     collectDockerEvidence(projectPath, evidence, buildFiles.filter(f => f.endsWith('Dockerfile') || f.includes('docker-compose'))),
+    collectPhpEvidence(projectPath, evidence, buildFiles.filter(f => f.endsWith('composer.json'))),
   ]);
 
   // Detect frameworks from dependencies
@@ -457,4 +463,36 @@ function detectFrameworks(evidence: BuildEvidence): void {
   }
   // Sort frameworks by confidence
   evidence.frameworks.sort((a, b) => b.confidence - a.confidence);
+}
+// ---------------------------------------------------------------------------
+// PHP / Composer
+// ---------------------------------------------------------------------------
+
+async function collectPhpEvidence(
+  projectPath: string,
+  evidence: BuildEvidence,
+  files: string[],
+): Promise<void> {
+  for (const file of files) {
+    if (file.endsWith('composer.json')) {
+      evidence.buildSystems.push({
+        name: 'Composer',
+        configFile: file,
+        language: 'PHP',
+      });
+      
+      const pkgPath = path.join(projectPath, file);
+      const pkg = await readJson<any>(pkgPath);
+      if (!pkg) continue;
+
+      const addDeps = (deps: Record<string, string> | undefined, type: DependencyInfo['type']) => {
+        if (!deps) return;
+        for (const [name, version] of Object.entries(deps)) {
+          evidence.dependencies.push({ name, version, type, source: file });
+        }
+      };
+      addDeps(pkg.require, 'production');
+      addDeps(pkg['require-dev'], 'development');
+    }
+  }
 }

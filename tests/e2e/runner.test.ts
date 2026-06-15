@@ -12,6 +12,10 @@ const fixtures = [
   'spring-boot-app',
   'react-app',
   'fastapi-app',
+  'express-app',
+  'django-app',
+  'laravel-app',
+  'sveltekit-app',
 ];
 
 describe('E2E Release Certification', () => {

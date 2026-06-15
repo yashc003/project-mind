@@ -32,18 +32,25 @@ export class PluginRegistry {
     this.failedPlugins = [];
 
     // 1. Auto-load official plugins based on frameworks
-    const officialMap: Record<string, string> = {
-      'spring-boot': 'plugins/spring-boot/index.js',
-      'fastapi': 'plugins/fastapi/index.js',
-      'react': 'plugins/react/index.js',
-      'nestjs': 'plugins/nestjs/index.js'
+    const officialMap: Record<string, { path: string, priority: number }> = {
+      'nestjs': { path: 'plugins/nestjs/index.js', priority: 50 },
+      'express': { path: 'plugins/express/index.js', priority: 100 },
+      'django': { path: 'plugins/django/index.js', priority: 150 },
+      'laravel': { path: 'plugins/laravel/index.js', priority: 150 },
+      'sveltekit': { path: 'plugins/sveltekit/index.js', priority: 150 },
+      'spring-boot': { path: 'plugins/spring-boot/index.js', priority: 150 },
+      'fastapi': { path: 'plugins/fastapi/index.js', priority: 200 },
+      'react': { path: 'plugins/react/index.js', priority: 200 },
     };
 
     if (autoLoadFrameworks) {
-      for (const framework of autoLoadFrameworks) {
-        if (officialMap[framework]) {
-           await this.loadSinglePlugin(projectPath, officialMap[framework], `@project-mind/plugin-${framework}`);
-        }
+      // Sort frameworks by priority before loading to ensure e.g. nestjs overrides express
+      const sortedFrameworks = autoLoadFrameworks
+        .filter(f => officialMap[f])
+        .sort((a, b) => officialMap[a].priority - officialMap[b].priority);
+
+      for (const framework of sortedFrameworks) {
+         await this.loadSinglePlugin(projectPath, officialMap[framework].path, `@project-mind/plugin-${framework}`);
       }
     }
 
