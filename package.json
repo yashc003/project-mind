@@ -43,7 +43,7 @@
   },
   "homepage": "https://github.com/yashc003/project-mind#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.12.0"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
