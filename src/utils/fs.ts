@@ -144,10 +144,11 @@ export async function countLines(filePath: string): Promise<number> {
     let count = 0;
     const stream = createReadStream(filePath, { encoding: 'utf-8' });
     
-    stream.on('data', (chunk: string) => {
+    stream.on('data', (chunk) => {
+      const textChunk = chunk.toString();
       // Fast byte-level counting of newlines
-      for (let i = 0; i < chunk.length; ++i) {
-        if (chunk[i] === '\n') count++;
+      for (let i = 0; i < textChunk.length; ++i) {
+        if (textChunk[i] === '\n') count++;
       }
     });
 

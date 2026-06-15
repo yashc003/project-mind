@@ -56,7 +56,7 @@ export async function generateContextPack(projectPath: string, memory: ProjectMe
     
     scopedNodes = memory.knowledgeGraph.nodes.filter(n => {
       // Keep global things by default unless they are clearly tied to other scopes
-      if (n.type === 'agent' || n.type === 'timeline') return true;
+      if (n.type === 'agent') return true;
       
       const text = `${n.id} ${n.label} ${JSON.stringify(n.properties || {})}`.toLowerCase();
       const inScope = text.includes(normalizedScope);

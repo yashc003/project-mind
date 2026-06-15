@@ -285,7 +285,7 @@ export async function runDoctorChecks(projectPath: string): Promise<DoctorCheckR
   if (memory && graphGen) {
      try {
        const pack = await generateContextPack(projectPath, memory, { topic: 'current', isCurrent: true, level: 'compact' });
-       const approxTokens = pack.length / 4;
+       const approxTokens = pack.content.length / 4;
        if (approxTokens < 10000) {
           budgetValid = true;
        } else {
