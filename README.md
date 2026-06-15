@@ -82,6 +82,8 @@ This single command automatically deep-scans your repository, infers your framew
 | `doctor` | Run sanity checks against context budgets, schema validity, and hooks. |
 | `repair` | Validate memory schema, migrate older versions, and fix missing artifacts. |
 
+*For more details on how to use please refer the USER_MANUAL.md
+
 ---
 
 ## 📚 Compatibility Matrix
@@ -115,10 +117,6 @@ Project-Mind is built to be fast, ensuring minimal friction during active AI cod
 For an in-depth dive into how Project-Mind works under the hood, check out the [Architecture Documentation](docs/ARCHITECTURE.md).
 
 ---
-
-## 🤝 Contributing
-
-We welcome contributions! Please open an issue or submit a pull request. Make sure to run `npm run test:e2e` to validate that all feature assertions pass.
 
 ## 📄 License
 
