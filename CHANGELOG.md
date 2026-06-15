@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context Relevance Engine**: Progressive detail reduction and Scope Pruning when using `project-mind pack <target> --budget <tokens>`. Automatically degrades Graph distances into Summaries and References to fit within the LLM context limits while protecting the minimum critical context.
 - **IDE Interoperability Registry**: Added `project-mind install-ide` to inject Project-Mind directly into `.cursorrules`, `.windsurfrules`, `.clinerules`, and 8 other AI coding assistants.
 - **Git Hooks Automation**: Added `project-mind install-hooks` for asynchronous background updates after every `git commit` and `git checkout` via lock-protected hooks. Husky (`.husky/`) natively supported.
-- **Plugin System**: Fully typed SDK (`ProjectMindPlugin`) for building framework-specific insight plugins.
-- **E2E Smoke Tests**: Robust lifecycle test matrix (`tests/e2e/runner.test.ts`) covering Node, React, Spring Boot, and FastAPI fixtures.
+- **Plugin System**: Fully typed SDK (`ProjectMindPlugin`) for building framework-specific insight plugins. Includes zero-config official plugins for **React, FastAPI, Spring Boot, NestJS, Express, Django, Laravel, and SvelteKit**.
+- **E2E Smoke Tests**: Robust lifecycle test matrix (`tests/e2e/runner.test.ts`) covering Node, React, Spring Boot, FastAPI, Express, Django, Laravel, and SvelteKit fixtures.
 - **Migration Engine**: Automatic schema migration for backwards compatibility (`project-mind repair`).
 - **Compatibility Matrix & Performance Budgets**: Added strict Service Level Objectives and versioning to the documentation.
 - **Handlebars Templates**: Fully decoupled `AI_START_HERE.md` template compilation for predictable context handoff.

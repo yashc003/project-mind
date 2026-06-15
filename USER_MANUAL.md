@@ -59,7 +59,7 @@ Project-Mind natively injects explicit operational rules into popular AI Agent I
 Project-Mind supports a powerful Plugin System that allows it to go beyond heuristic analysis and perform deep AST-based code understanding for specific frameworks. Plugins can extract API endpoints (`GET /users`), identify specific UI workflows, and inject custom dependency maps.
 
 ### What Plugins Do
-- **Framework Depth:** Plugins for frameworks like **FastAPI**, **NestJS**, **Spring Boot**, and **React** can parse files (via regex or AST) to find precisely defined routes, modules, guards, or contexts.
+- **Framework Depth:** Plugins for frameworks like **FastAPI**, **NestJS**, **Spring Boot**, **React**, **Express**, **Django**, **Laravel**, and **SvelteKit** can parse files (via regex or AST) to find precisely defined routes, modules, guards, or contexts.
 - **Explain Context:** Plugins can supply deep technical rationale for architecture components when exploring the node graph.
 - **Workflow Generation:** Plugins can automatically map UI user flows to backend API calls.
 
@@ -67,7 +67,7 @@ Project-Mind supports a powerful Plugin System that allows it to go beyond heuri
 
 Project-Mind features a **Frictionless Plugin System**. You do not need to configure anything to use the official plugins!
 
-1. During `project-mind update`, the Discovery Engine scans your project for framework footprints (e.g., `pom.xml` for Spring Boot, `package.json` for React/NestJS, `requirements.txt` for FastAPI).
+1. During `project-mind update`, the Discovery Engine scans your project for framework footprints (e.g., `pom.xml` for Spring Boot, `package.json` for React/NestJS/Express/SvelteKit, `requirements.txt` for FastAPI/Django, `composer.json` for Laravel).
 2. If it detects a supported framework, it automatically loads and executes the corresponding official plugin in the background.
 3. The plugin analyzes your code, extracts endpoints, and injects them directly into your `.project-mind/AI_START_HERE.md` Component Inventory.
 
@@ -107,6 +107,18 @@ project-mind plugin untrust ./path/to/my-custom-plugin.js
 ```
 
 Once a plugin is trusted, Project-Mind records its `SHA-256` hash. If the plugin file is modified maliciously later, it will be automatically blocked again until you re-trust the new hash.
+
+### Building Your Own Plugin (Community Template)
+
+Want to build a plugin for your favorite framework? We provide a ready-to-use boilerplate!
+
+1. Copy the `templates/plugin-template/` directory from the Project-Mind repository.
+2. It includes a pre-configured `package.json`, `tsconfig.json`, `vitest` suite, and a sample `index.ts` stub.
+3. Write your extraction logic (heuristics or AST parsing).
+4. Run `npm run build` and test it locally using an `example-fixture`.
+5. Publish it to NPM (e.g., `my-custom-project-mind-plugin`)!
+
+Eventually, we will add `project-mind plugin create my-plugin` to scaffold this automatically.
 
 ---
 
