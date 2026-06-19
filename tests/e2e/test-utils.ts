@@ -44,6 +44,8 @@ export async function setupFixture(fixture: string) {
   }
   await execAsync('git init', { cwd: fixturePath });
   await execAsync('git config core.autocrlf false', { cwd: fixturePath });
+  await execAsync('git config user.name "Test User"', { cwd: fixturePath });
+  await execAsync('git config user.email "test@example.com"', { cwd: fixturePath });
   // Initial commit so project-mind has a clean state to diff against
   await execAsync('git add . && git commit --allow-empty -m "Init"', { cwd: fixturePath });
   
