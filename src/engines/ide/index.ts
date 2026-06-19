@@ -54,7 +54,7 @@ export const IDE_PROVIDERS: IDEProvider[] = [
   {
     id: 'claude',
     name: 'Claude Code',
-    ruleFile: '.clauderules',
+    ruleFile: 'CLAUDE.md',
   },
   {
     id: 'devin',
@@ -69,8 +69,8 @@ export const IDE_PROVIDERS: IDEProvider[] = [
   {
     id: 'continue',
     name: 'Continue',
-    ruleFile: '.continue/prompts/project-mind.prompt',
-    configDir: '.continue',
+    ruleFile: '.prompts/project-mind.prompt',
+    configDir: '.prompts',
   }
 ];
 
@@ -132,10 +132,10 @@ export async function checkIDEIntegrations(projectPath: string): Promise<IDEStat
   for (const provider of IDE_PROVIDERS) {
     const filePath = path.join(projectPath, provider.ruleFile);
     const hasRuleFile = await fileExists(filePath);
-    
+
     let hasConfigDir = false;
     if (provider.configDir) {
-       hasConfigDir = await dirExists(path.join(projectPath, provider.configDir));
+      hasConfigDir = await dirExists(path.join(projectPath, provider.configDir));
     }
 
     const isInstalled = hasRuleFile || hasConfigDir;

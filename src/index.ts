@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { Command } from 'commander';
+import { getProjectMindVersion } from './utils/version.js';
 import { initCommand } from './commands/init.js';
 import { updateCommand } from './commands/update.js';
 import { noteCommand } from './commands/note.js';
@@ -30,13 +31,14 @@ import { governanceCommand } from './commands/governance.js';
 import { repairCommand } from './commands/repair.js';
 import { diffCommand } from './commands/diff.js';
 import { installIdeCommand } from './commands/install-ide.js';
+import { mcpCommand } from './commands/mcp.js';
 
 export function createProgram(): Command {
   const program = new Command();
 
   program
     .name('project-mind')
-    .version('1.0.0')
+    .version(getProjectMindVersion())
     .description(
       'Project-Mind — Autonomous Project Intelligence & AI Context Persistence\n\n' +
       'Preserve, reconstruct, and transfer project understanding between\n' +
@@ -69,6 +71,7 @@ export function createProgram(): Command {
   program.addCommand(repairCommand);
   program.addCommand(diffCommand);
   program.addCommand(installIdeCommand);
+  program.addCommand(mcpCommand);
 
   // Global error handling
   program.exitOverride();

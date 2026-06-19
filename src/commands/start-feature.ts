@@ -7,6 +7,7 @@ import readline from 'node:readline';
 import crypto from 'node:crypto';
 import { loadMemory, saveMemory } from '../engines/memory/index.js';
 import { logAgentInteraction } from '../engines/memory/agent-history.js';
+import { generateHandoff } from '../engines/handoff/index.js';
 import logger from '../utils/logger.js';
 import type { CurrentFocus, Decision } from '../types/index.js';
 
@@ -92,6 +93,7 @@ export const startFeatureCommand = new Command('start-feature')
     memory.decisions.push(decision);
 
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     await logAgentInteraction(projectPath, agent, 'start-feature', feature);
 
     logger.success(`Feature '${feature}' started. Intent captured.`);

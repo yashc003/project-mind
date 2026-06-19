@@ -99,6 +99,70 @@ export async function getRecentChanges(
   }
 }
 
+/**
+ * Gets files changed and deleted since a specific commit hash.
+ * Also includes untracked files.
+ */
+export async function getChangedFilesSinceHash(
+  dir: string,
+  lastHash: string
+): Promise<{ changed: string[], deleted: string[] }> {
+  try {
+    const git = simpleGit(dir);
+    
+    // Get diff against the last known hash
+    // --name-status returns lines like:
+    // M       src/foo.ts
+    // D       src/bar.ts
+    // A       src/baz.ts
+    const statusOutput = await git.raw(['diff', '--name-status', lastHash, 'HEAD']);
+    const untrackedOutput = await git.raw(['ls-files', '--others', '--exclude-standard']);
+    const cachedOutput = await git.raw(['diff', '--name-status', '--cached']);
+    
+    const changed = new Set<string>();
+    const deleted = new Set<string>();
+
+    const parseNameStatus = (output: string) => {
+      for (const line of output.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        // Split by whitespace
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 2) {
+          const status = parts[0];
+          const file = parts.slice(1).join(' '); // handle spaces in paths just in case
+          
+          if (status.startsWith('D')) {
+            deleted.add(file);
+          } else {
+            changed.add(file);
+          }
+        }
+      }
+    };
+
+    parseNameStatus(statusOutput);
+    parseNameStatus(cachedOutput);
+    
+    // Add untracked files as changed
+    for (const file of untrackedOutput.split('\n')) {
+      const trimmed = file.trim();
+      if (trimmed) {
+        changed.add(trimmed);
+      }
+    }
+
+    return {
+      changed: Array.from(changed),
+      deleted: Array.from(deleted)
+    };
+  } catch (err) {
+    // If hash doesn't exist or git fails, return null to fallback to full scan
+    return { changed: [], deleted: [] };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal safe wrappers — never throw, return defaults on failure
 // ---------------------------------------------------------------------------

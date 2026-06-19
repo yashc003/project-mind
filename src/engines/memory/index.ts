@@ -20,11 +20,13 @@ import type {
   SessionReference,
   CurrentFocus,
   Workflow,
+  SemanticEntity,
 } from '../../types/index.js';
 import { computeConfidence } from '../../utils/confidence.js';
 import { loadStaticConfig } from '../../utils/config-loader.js';
 import { migrateMemory } from './migration.js';
 import { buildKnowledgeGraph, generateMermaidGraph } from '../graph/index.js';
+import { generateAuditReport } from '../graph/audit.js';
 import {
   createEmptyMemory,
   getMemoryFilePaths,
@@ -38,6 +40,8 @@ import {
   writeText,
   fileExists,
 } from '../../utils/fs.js';
+
+export { getMemoryFilePaths };
 
 // ---------------------------------------------------------------------------
 // Initialization
@@ -133,8 +137,21 @@ export async function loadConfig(projectPath: string): Promise<ProjectMindConfig
 export async function saveMemory(
   projectPath: string,
   memory: ProjectMemory,
+  semantics?: SemanticEntity[],
+  rationale?: { nodes: any[], edges: any[] }
 ): Promise<void> {
   const paths = getMemoryFilePaths(projectPath);
+
+  // Load from cache if not provided
+  let currentSemantics = semantics;
+  if (!currentSemantics && await fileExists(paths.semanticsJson)) {
+    try { currentSemantics = JSON.parse(await fs.readFile(paths.semanticsJson, 'utf-8')); } catch(e) {}
+  }
+  
+  let currentRationale = rationale;
+  if (!currentRationale && await fileExists(paths.rationaleJson)) {
+    try { currentRationale = JSON.parse(await fs.readFile(paths.rationaleJson, 'utf-8')); } catch(e) {}
+  }
 
   await ensureDir(paths.authored);
   await ensureDir(paths.derived);
@@ -157,11 +174,11 @@ export async function saveMemory(
   memory.updatedAt = new Date().toISOString();
 
   // Load agent history for the graph
-  const agentHistoryStr = await fileExists(paths.agentHistory) ? await fs.readFile(paths.agentHistory, 'utf-8') : '[]';
-  const agentHistory = JSON.parse(agentHistoryStr);
+  const agentHistoryStr = await fileExists(paths.agentHistory) ? await fs.readFile(paths.agentHistory, 'utf-8') : '';
+  const agentHistory = agentHistoryStr ? agentHistoryStr.split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
 
   // Build Knowledge Graph
-  const { graph, markdown } = await buildKnowledgeGraph(memory, agentHistory, projectPath);
+  const { graph, markdown } = await buildKnowledgeGraph(memory, agentHistory, projectPath, currentSemantics, currentRationale);
   memory.knowledgeGraph = graph;
 
   // Remove lastHash before saving
@@ -175,7 +192,7 @@ export async function saveMemory(
   await writeJson(paths.currentFocusAuthored, memory.focusHistory.active);
 
   // 2. Write derived files
-  await Promise.all([
+  const writePromises: Promise<any>[] = [
     writeJson(paths.memory, memoryToSave),
     writeJson(paths.architecture, memory.architecture),
     writeJson(paths.workflows, memory.workflows),
@@ -187,8 +204,14 @@ export async function saveMemory(
     writeJson(paths.knowledgeGraphJson, memory.knowledgeGraph),
     writeText(paths.knowledgeGraphMd, generateMermaidGraph(memory.knowledgeGraph)),
     // Mirror currentFocus to root for easy AI access without parsing authored/ logic
-    writeJson(paths.currentFocusRoot, memory.focusHistory.active)
-  ]);
+    writeJson(paths.currentFocusRoot, memory.focusHistory.active),
+    generateAuditReport(memory.knowledgeGraph, projectPath)
+  ];
+  
+  if (semantics) writePromises.push(writeJson(paths.semanticsJson, semantics));
+  if (rationale) writePromises.push(writeJson(paths.rationaleJson, rationale));
+
+  await Promise.all(writePromises);
 
   // 3. Clean up legacy root files from flat structure
   const legacyFiles = [
@@ -238,7 +261,12 @@ export function updateEvidence(
   memory.scenario = result.scenario;
   memory.workflows = result.workflows;
   memory.timeline = result.timeline;
-  memory.features = result.features;
+  // Merge features to prevent data loss
+  const featureMap = new Map(memory.features?.map(f => [f.id || f.name, f]) || []);
+  for (const newFeat of result.features) {
+    featureMap.set(newFeat.id || newFeat.name, newFeat);
+  }
+  memory.features = Array.from(featureMap.values());
 
   // Sync v0.2 engines (they update the root memory object in the orchestrator)
   // This ensures they are persisted on save.

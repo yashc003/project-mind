@@ -74,6 +74,7 @@ export async function generateContextPack(projectPath: string, memory: ProjectMe
 
   // Create a temporary scoped graph
   const scopedGraph = {
+    version: memory.knowledgeGraph.version,
     nodes: scopedNodes,
     edges: memory.knowledgeGraph.edges.filter(e => 
       scopedNodes.some(n => n.id === e.source) && scopedNodes.some(n => n.id === e.target)
@@ -158,7 +159,17 @@ export async function generateContextPack(projectPath: string, memory: ProjectMe
     out = `- **${nwd.node.label}**\n`;
     if (nwd.node.properties) {
       for (const [k, v] of Object.entries(nwd.node.properties)) {
-        if (typeof v === 'string' && v.length < 100) out += `  - ${k}: ${v}\n`;
+        if (k === 'signatures' && Array.isArray(v)) {
+          out += `\n  \`\`\`typescript\n`;
+          for (const sig of v) {
+            if (sig.raw) out += `  ${sig.raw}\n`;
+          }
+          out += `  \`\`\`\n`;
+        } else if (typeof v === 'string' && v.length < 100) {
+          out += `  - ${k}: ${v}\n`;
+        } else if (typeof v === 'boolean' || typeof v === 'number') {
+          out += `  - ${k}: ${v}\n`;
+        }
       }
     }
     if (nwd.node.type === 'file') {

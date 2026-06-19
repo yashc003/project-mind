@@ -46,6 +46,7 @@ graphCommand
   .command('show')
   .description('Generate and print the Mermaid graph markdown')
   .option('--focus <target>', 'Target component, feature, or node ID to focus the graph on')
+  .option('--format <format>', 'Output format: mermaid or ascii', 'mermaid')
   .action(async (options) => {
     const projectPath = process.cwd();
     const memory = await loadMemory(projectPath);
@@ -55,8 +56,58 @@ graphCommand
       process.exit(1);
     }
 
-    const { generateMermaidGraph } = await import('../engines/graph/index.js');
-    const markdown = generateMermaidGraph(memory.knowledgeGraph, options.focus);
+    const { generateMermaidGraph, generateAsciiGraph } = await import('../engines/graph/index.js');
     
-    console.log(markdown);
+    if (options.format === 'ascii') {
+      const ascii = generateAsciiGraph(memory.knowledgeGraph, options.focus);
+      console.log(ascii);
+    } else {
+      const markdown = generateMermaidGraph(memory.knowledgeGraph, options.focus);
+      console.log(markdown);
+    }
+  });
+
+graphCommand
+  .command('visualize')
+  .description('Launch the interactive browser-based Knowledge Graph visualizer')
+  .option('--focus <target>', 'Target component, feature, or node ID to focus the graph on')
+  .option('--no-open', 'Generate the HTML file without opening the browser')
+  .action(async (options) => {
+    const projectPath = process.cwd();
+    const memory = await loadMemory(projectPath);
+
+    if (!memory || !memory.knowledgeGraph) {
+      logger.error('Project-Mind graph is not initialized. Run `project-mind update` first.');
+      process.exit(1);
+    }
+
+    const { generateGraphViewer } = await import('../engines/graph/visualizer.js');
+    
+    logger.info('Generating interactive graph visualizer...');
+    const htmlPath = await generateGraphViewer(memory.knowledgeGraph, projectPath, options.focus);
+    
+    logger.success(`Generated visualizer at: ${htmlPath}`);
+    
+    if (options.open) {
+      const { exec } = await import('node:child_process');
+      const os = await import('node:os');
+      const platform = os.platform();
+      
+      let cmd = '';
+      if (platform === 'win32') {
+        cmd = `start "" "${htmlPath}"`;
+      } else if (platform === 'darwin') {
+        cmd = `open "${htmlPath}"`;
+      } else {
+        cmd = `xdg-open "${htmlPath}"`;
+      }
+      
+      exec(cmd, (err) => {
+        if (err) {
+          logger.error(`Failed to open browser: ${err.message}`);
+        } else {
+          logger.success('Opened in browser.');
+        }
+      });
+    }
   });

@@ -23,7 +23,10 @@ import type {
 } from '../../types/index.js';
 
 /** Current schema version */
-export const SCHEMA_VERSION = '1.0.0';
+export const SCHEMA_VERSION = '1.1.0';
+
+/** Current knowledge graph version */
+export const GRAPH_VERSION = '2.0';
 
 /** Default configuration values */
 export const DEFAULT_CONFIG: ProjectMindConfig = {
@@ -97,7 +100,7 @@ export function createEmptyMemory(projectName: string): ProjectMemory {
     workflows: [],
     timeline: [],
     features: [],
-    knowledgeGraph: { nodes: [], edges: [] },
+    knowledgeGraph: { version: GRAPH_VERSION, nodes: [], edges: [] },
   };
 }
 
@@ -221,6 +224,7 @@ export function getMemoryFilePaths(projectPath: string): Record<string, string> 
     // Authored (Source of Truth)
     decisionsJsonl: `${authored}/decisions.jsonl`,
     notesJsonl: `${authored}/notes.jsonl`,
+    journal: `${authored}/journal.jsonl`,
     currentFocusAuthored: `${authored}/focus.json`,
     config: `${authored}/config.json`,
     pluginsConfig: `${authored}/plugins.json`,
@@ -228,6 +232,8 @@ export function getMemoryFilePaths(projectPath: string): Record<string, string> 
     // Derived
     memory: `${derived}/MEMORY.json`,
     memoryPrev: `${derived}/MEMORY_PREV.json`,
+    semanticsJson: `${derived}/SEMANTICS.json`,
+    rationaleJson: `${derived}/RATIONALE.json`,
     architecture: `${derived}/ARCHITECTURE.json`,
     features: `${derived}/FEATURES.json`,
     timeline: `${derived}/TIMELINE.json`,
@@ -235,9 +241,10 @@ export function getMemoryFilePaths(projectPath: string): Record<string, string> 
     workflowsMd: `${derived}/WORKFLOWS.md`,
     knowledgeGraphJson: `${derived}/KNOWLEDGE_GRAPH.json`,
     knowledgeGraphMd: `${derived}/KNOWLEDGE_GRAPH.md`,
+    graphViewer: `${derived}/GRAPH_VIEWER.html`,
     governanceJson: `${derived}/GOVERNANCE.json`,
     governanceMd: `${derived}/GOVERNANCE.md`,
-    agentHistory: `${derived}/AGENT_HISTORY.json`,
+    agentHistory: `${derived}/AGENT_HISTORY.jsonl`,
     sessions: `${derived}/sessions`,
 
     // Legacy/Root Generated

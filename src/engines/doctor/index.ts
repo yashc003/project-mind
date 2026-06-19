@@ -232,6 +232,29 @@ export async function runDoctorChecks(projectPath: string): Promise<DoctorCheckR
     message: graphGen ? '' : 'Knowledge graph is empty.'
   });
 
+  // 6.5. Graph Version Current
+  let graphVersionCurrent = false;
+  let graphVersionMsg = '';
+  if (memory && memory.knowledgeGraph) {
+    // GRAPH_VERSION needs to be imported or hardcoded.
+    // I'll import it from schema.js
+    if (memory.knowledgeGraph.version === '2.0') {
+      graphVersionCurrent = true;
+    } else {
+      graphVersionMsg = `Graph version is ${memory.knowledgeGraph.version}, expected 2.0. Run project-mind update.`;
+    }
+  } else {
+    graphVersionMsg = 'No knowledge graph found.';
+  }
+  
+  results.push({
+    id: 'graph-version',
+    title: 'Graph Version Current',
+    passed: graphVersionCurrent,
+    severity: 'warning',
+    message: graphVersionMsg
+  });
+
   // 7. Plugin Trust Valid
   let pluginsValid = true;
   let pluginMsg = '';
@@ -361,6 +384,31 @@ export async function runDoctorChecks(projectPath: string): Promise<DoctorCheckR
     passed: ideInstalled,
     severity: 'warning',
     message: ideInstalled ? '' : 'No .cursorrules or .windsurfrules integration found.'
+  });
+
+  // 12. Semantic Extraction Operational
+  let semanticOperational = false;
+  let semanticMsg = 'No semantic nodes found in the Knowledge Graph.';
+  try {
+    const graphStr = await fs.readFile(paths.knowledgeGraphJson, 'utf-8').catch(() => '{}');
+    const graph = JSON.parse(graphStr);
+    if (graph && graph.nodes && Array.isArray(graph.nodes)) {
+      const semanticTypes = ['class', 'interface', 'function', 'hook', 'controller', 'service', 'repository', 'model'];
+      const semanticNodes = graph.nodes.filter((n: any) => semanticTypes.includes(n.type));
+      if (semanticNodes.length > 0) {
+        semanticOperational = true;
+        semanticMsg = '';
+      }
+    }
+  } catch (e: any) {
+    semanticMsg = `Failed to read Knowledge Graph: ${e.message}`;
+  }
+  results.push({
+    id: 'semantic-extraction',
+    title: 'Semantic extraction operational',
+    passed: semanticOperational,
+    severity: 'warning',
+    message: semanticMsg
   });
 
   return results;

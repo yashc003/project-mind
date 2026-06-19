@@ -8,8 +8,8 @@
 import { Command } from 'commander';
 import ora from 'ora';
 import logger from '../utils/logger.js';
-import { getProjectRoot } from '../utils/fs.js';
-import { isGitRepo, getRecentChanges } from '../utils/git.js';
+import { getProjectRoot, fileExists } from '../utils/fs.js';
+import { isGitRepo, getRecentChanges, getChangedFilesSinceHash } from '../utils/git.js';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { promises as fs } from 'node:fs';
@@ -24,6 +24,7 @@ import {
   updateEvidence,
   addSessionRef,
   getNextSessionId,
+  getMemoryFilePaths
 } from '../engines/memory/index.js';
 import { recordSession } from '../engines/memory/session.js';
 import { runDiscovery } from '../engines/discovery/index.js';
@@ -100,6 +101,13 @@ export const updateCommand = new Command('update')
       }
 
       // Incremental Cache Check
+      let cachedSemantics = null;
+      let cachedRationale = null;
+      let changedFilesList: string[] | null = null;
+      let deletedFilesList: string[] | null = null;
+
+      const paths = getMemoryFilePaths(projectPath);
+
       if (await isGitRepo(projectPath)) {
         try {
           const { stdout: status } = await execAsync('git status --porcelain', { cwd: projectPath });
@@ -114,22 +122,43 @@ export const updateCommand = new Command('update')
             }
             process.exit(0);
           }
+
+          // If we have a last hash, we can attempt an incremental scan
+          if (lastHash) {
+            const { changed, deleted } = await getChangedFilesSinceHash(projectPath, lastHash);
+            
+            // Only try to load caches if we successfully got a diff
+            if (changed.length > 0 || deleted.length > 0 || isClean) {
+              if (await fileExists(paths.semanticsJson)) {
+                cachedSemantics = JSON.parse(await fs.readFile(paths.semanticsJson, 'utf-8'));
+              }
+              if (await fileExists(paths.rationaleJson)) {
+                cachedRationale = JSON.parse(await fs.readFile(paths.rationaleJson, 'utf-8'));
+              }
+              changedFilesList = changed;
+              deletedFilesList = deleted;
+            }
+          }
         } catch (e) {
           // Ignore git errors, just proceed with full update
         }
       }
 
+      if (!options.quiet && cachedSemantics) {
+        logger.info(`Incremental scan enabled: ${changedFilesList?.length || 0} files changed, ${deletedFilesList?.length || 0} deleted`);
+      }
+
       // Run discovery
+      let result;
       if (!options.quiet) {
         const spinner = ora('Collecting evidence...').start();
-        const result = await runDiscovery(projectPath, config);
+        result = await runDiscovery(projectPath, config, cachedSemantics, changedFilesList, deletedFilesList);
         spinner.succeed('Evidence collection complete');
-
         // Update memory
         updateEvidence(memory, result);
       } else {
         // Quiet mode for hooks
-        const result = await runDiscovery(projectPath, config);
+        result = await runDiscovery(projectPath, config, cachedSemantics, changedFilesList, deletedFilesList);
         updateEvidence(memory, result);
       }
 
@@ -173,9 +202,6 @@ export const updateCommand = new Command('update')
         }
       }
 
-      // Regenerate handoff documents
-      await generateHandoff(projectPath, memory);
-
       // Record session
       const duration = Date.now() - startTime;
       const sessionId = getNextSessionId(memory);
@@ -190,8 +216,11 @@ export const updateCommand = new Command('update')
       );
       addSessionRef(memory, ref);
 
-      // Save
-      await saveMemory(projectPath, memory);
+      // Save Memory FIRST so MEMORY_PREV.json represents state N, and memory represents state N+1
+      await saveMemory(projectPath, memory, result.semantics);
+
+      // Regenerate handoff documents using the correct delta
+      await generateHandoff(projectPath, memory);
 
       if (!options.quiet) {
         logger.blank();

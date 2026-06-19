@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { loadMemory, saveMemory } from '../engines/memory/index.js';
 import { logAgentInteraction } from '../engines/memory/agent-history.js';
 import { detectScopeDrift } from '../engines/focus/index.js';
+import { generateHandoff } from '../engines/handoff/index.js';
 import logger from '../utils/logger.js';
 import chalk from 'chalk';
 
@@ -55,6 +56,7 @@ export const completeFeatureCommand = new Command('complete-feature')
     memory.focusHistory.active = null;
 
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     await logAgentInteraction(projectPath, agent, 'complete-feature', active.feature);
 
     logger.success(`Feature '${active.feature}' marked as complete in ${durationHours} hours and moved to history.`);

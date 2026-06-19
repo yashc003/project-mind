@@ -3,7 +3,8 @@
 // ============================================================================
 
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import fs from 'node:fs';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import type { ProjectMindPlugin } from '../../types/index.js';
 import logger from '../../utils/logger.js';
 import { fileExists, readJson } from '../../utils/fs.js';
@@ -34,13 +35,16 @@ export class PluginRegistry {
     // 1. Auto-load official plugins based on frameworks
     const officialMap: Record<string, { path: string, priority: number }> = {
       'nestjs': { path: 'plugins/nestjs/index.js', priority: 50 },
+      '@nestjs/core': { path: 'plugins/nestjs/index.js', priority: 50 },
       'express': { path: 'plugins/express/index.js', priority: 100 },
       'django': { path: 'plugins/django/index.js', priority: 150 },
       'laravel': { path: 'plugins/laravel/index.js', priority: 150 },
       'sveltekit': { path: 'plugins/sveltekit/index.js', priority: 150 },
       'spring-boot': { path: 'plugins/spring-boot/index.js', priority: 150 },
+      'spring-boot-starter-web': { path: 'plugins/spring-boot/index.js', priority: 150 },
       'fastapi': { path: 'plugins/fastapi/index.js', priority: 200 },
       'react': { path: 'plugins/react/index.js', priority: 200 },
+      'react-dom': { path: 'plugins/react/index.js', priority: 200 },
     };
 
     if (autoLoadFrameworks) {
@@ -118,8 +122,22 @@ export class PluginRegistry {
 
     // Official plugins resolution (bypasses local resolution)
     if (identifier.startsWith('plugins/')) {
-      const url = new URL(`./${identifier}`, import.meta.url);
-      importPath = url.href;
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const isDist = __dirname.endsWith('dist') || __dirname.includes(`${path.sep}dist${path.sep}`);
+      const projectMindRoot = isDist 
+        ? path.resolve(__dirname, '../') 
+        : path.resolve(__dirname, '../../../');
+
+      let pluginRelativePath = identifier;
+      
+      if (!isDist && pluginRelativePath.endsWith('.js')) {
+        pluginRelativePath = pluginRelativePath.replace(/\.js$/, '.ts');
+      } else if (isDist) {
+        pluginRelativePath = `dist/${pluginRelativePath}`;
+      }
+
+      const absolutePluginPath = path.join(projectMindRoot, pluginRelativePath);
+      importPath = pathToFileURL(absolutePluginPath).href;
     }
     // Is it a local path?
     else if (identifier.startsWith('.') || identifier.startsWith('/') || identifier.startsWith('C:\\') || identifier.startsWith('D:\\')) {

@@ -23,6 +23,7 @@ import { installHook } from './install-hooks.js';
 import { isGitRepo } from '../utils/git.js';
 import { detectAvailableIDEs } from '../engines/ide/index.js';
 import chalk from 'chalk';
+import { getProjectMindVersion } from '../utils/version.js';
 
 export const initCommand = new Command('init')
   .description('Initialize Project-Mind in the current project')
@@ -82,7 +83,7 @@ export const initCommand = new Command('init')
         logger.section('Scaffolding Governance Policies');
         const configPath = path.join(projectPath, '.project-mind.json');
         const initialConfig = {
-          version: '0.7.0',
+          version: getProjectMindVersion(),
           policies: BUILTIN_POLICIES,
         };
         await writeJson(configPath, initialConfig);

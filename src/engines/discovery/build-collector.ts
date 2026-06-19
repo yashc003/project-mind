@@ -42,6 +42,7 @@ const FRAMEWORK_FINGERPRINTS: Record<string, {
   'nestjs': { category: 'api', confidence: 90 },
   '@nestjs/core': { category: 'api', confidence: 95 },
   'spring-boot': { category: 'api', confidence: 95 },
+  'spring-boot-starter-web': { category: 'api', confidence: 95 },
   'django': { category: 'api', confidence: 95 },
   'flask': { category: 'api', confidence: 95 },
   'fastapi': { category: 'api', confidence: 95 },

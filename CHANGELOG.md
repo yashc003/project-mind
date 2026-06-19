@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-15
+
+### Added
+- **Semantic Architecture Layer**: Advanced semantic entity extraction powered by Tree-sitter AST parsing. Parses and understands Classes, Interfaces, Functions, Components, Hooks, Controllers, Services, Repositories, and Models.
+- **Deep Relationship Graph**: Injects semantic entities directly into the Knowledge Graph, establishing rich `CONTAINS`, `USES`, `EXTENDS`, and `EXPORTS` relationship edges.
+- **Hybrid Parsing Strategy**: System lazily loads high-performance WASM Tree-sitter parsers for JS, TS, Python, Java, PHP, and automatically falls back to Regex scanning for unsupported formats or missing language modules.
+- **Strict Parsing Overhead Budgets**: Monitored parsing budgets to ensure AST extraction overhead does not exceed 2x regex scan time.
+- **Semantic Diagnostics Validation**: `project-mind doctor` now verifies that the Graph version is current and that AST extraction is operational within performance targets.
+
+### Changed
+- Bumped memory schema to `v1.1.0`.
+- Bumped Graph Version to `2.0`.
+
 ## [1.0.0] - 2026-06-14
 
 ### Added

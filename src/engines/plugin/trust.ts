@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import logger from '../../utils/logger.js';
+import { getProjectMindVersion } from '../../utils/version.js';
 
 interface TrustedPluginInfo {
   trusted: boolean;
@@ -96,7 +97,7 @@ export const trustPlugin = async (pluginIdentifier: string): Promise<void> => {
       trusted: true,
       sha256,
       trustedAt: new Date().toISOString(),
-      projectMindVersion: '1.0.0' // Hardcoding to 1.0.0 for now, could be dynamic
+      projectMindVersion: getProjectMindVersion()
     };
     
     await fs.writeFile(trustFile, JSON.stringify(data, null, 2), 'utf-8');

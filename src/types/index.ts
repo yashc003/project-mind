@@ -345,18 +345,46 @@ export interface DeveloperNote {
   tags: string[];
 }
 
+export interface SemanticSignature {
+  name: string;
+  kind: 'method' | 'property' | 'function' | 'enum_member' | 'type_alias';
+  parameters?: string[];
+  returnType?: string;
+  modifiers?: string[];
+  raw?: string;
+}
+
+export interface SemanticEntity {
+  id: string;
+  name: string;
+  type: 'class' | 'interface' | 'function' | 'hook' | 'controller' | 'service' | 'repository' | 'model' | 'generic' | 'enum' | 'type_alias';
+  file: string;
+  language: string;
+  confidence: number;
+  source: 'ast' | 'regex';
+  isExported?: boolean;
+  signatures?: SemanticSignature[];
+  metadata?: Record<string, unknown>;
+  uses?: string[];
+  extends?: string[];
+  implements?: string[];
+  decorates?: string[];
+  imports?: string[];
+}
+
 // ---------------------------------------------------------------------------
-// Knowledge Graph (v0.4)
+// Knowledge Graph
 // ---------------------------------------------------------------------------
 
 export interface KnowledgeGraph {
+  version: string;
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
 
 export interface GraphNode {
   id: string;
-  type: 'component' | 'feature' | 'workflow' | 'decision' | 'focus' | 'agent' | 'file';
+  type: 'component' | 'feature' | 'workflow' | 'decision' | 'focus' | 'agent' | 'file' | 'route' | 'class' | 'interface' | 'function' | 'hook' | 'controller' | 'service' | 'repository' | 'model' | 'enum' | 'type_alias' | 'generic' | 'rationale';
   label: string;
   properties?: Record<string, any>;
 }
@@ -364,8 +392,10 @@ export interface GraphNode {
 export interface GraphEdge {
   source: string; // Node ID
   target: string; // Node ID
-  relation: 'BELONGS_TO' | 'IMPACTS' | 'IMPLEMENTS' | 'TRIGGERS' | 'CREATED' | 'UPDATED' | 'MODIFIED' | 'CONTAINS' | 'DEPENDS_ON';
+  relation: 'BELONGS_TO' | 'IMPACTS' | 'IMPLEMENTS' | 'TRIGGERS' | 'CREATED' | 'UPDATED' | 'MODIFIED' | 'CONTAINS' | 'DEPENDS_ON' | 'USES' | 'EXTENDS' | 'EXPORTS' | 'IMPORTS' | 'DECORATES' | 'RATIONALE_FOR' | 'SEMANTICALLY_SIMILAR_TO';
   properties?: Record<string, any>;
+  provenance?: 'EXTRACTED' | 'INFERRED' | 'AMBIGUOUS';
+  confidence?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -504,8 +534,9 @@ export interface DiscoveryResult {
   architecture: ArchitectureModel;
   confidence: ConfidenceScores;
   workflows: Workflow[];
-  timeline: TimelineEvent[];
   features: Feature[];
+  semantics?: SemanticEntity[];
+  timeline: TimelineEvent[];
   duration: number; // milliseconds
 }
 

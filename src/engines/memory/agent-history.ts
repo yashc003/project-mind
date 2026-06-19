@@ -7,7 +7,9 @@
 
 import type { AgentInteraction } from '../../types/index.js';
 import { getMemoryFilePaths } from './schema.js';
-import { readJson, writeJson, fileExists } from '../../utils/fs.js';
+import { ensureDir } from '../../utils/fs.js';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
 export async function logAgentInteraction(
   projectPath: string,
@@ -17,18 +19,15 @@ export async function logAgentInteraction(
 ): Promise<void> {
   const paths = getMemoryFilePaths(projectPath);
   
-  if (!(await fileExists(paths.agentHistory))) {
-    return;
-  }
-
-  const history = (await readJson<AgentInteraction[]>(paths.agentHistory)) || [];
-
-  history.push({
+  const interaction: AgentInteraction = {
     agent,
     action,
     timestamp: new Date().toISOString(),
     details,
-  });
+  };
 
-  await writeJson(paths.agentHistory, history);
+  await ensureDir(path.dirname(paths.agentHistory));
+  const jsonlLine = JSON.stringify(interaction) + '\n';
+  
+  await fs.appendFile(paths.agentHistory, jsonlLine, 'utf-8');
 }

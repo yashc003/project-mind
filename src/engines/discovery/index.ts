@@ -22,6 +22,8 @@ import { detectWorkflows } from '../workflow/index.js';
 import { reconstructTimeline } from '../timeline/index.js';
 import { detectFeatures } from '../feature/index.js';
 import { pluginRegistry } from '../plugin/registry.js';
+import { AstService } from './ast/AstService.js';
+import { extractSemantics } from './semantics.js';
 import { mergeContributions } from '../plugin/merge.js';
 import type { PluginContribution, PluginContext } from '../../types/plugin.js';
 import { computeConfidence } from '../../utils/confidence.js';
@@ -35,6 +37,9 @@ import ora from 'ora';
 export async function runDiscovery(
   projectPath: string,
   config: ProjectMindConfig,
+  cachedSemantics?: SemanticEntity[] | null,
+  changedFiles?: string[] | null,
+  deletedFiles?: string[] | null
 ): Promise<DiscoveryResult> {
   const startTime = Date.now();
 
@@ -71,6 +76,9 @@ export async function runDiscovery(
     documentation,
   };
 
+  logger.step(6, 6, 'Extracting semantics (AST)...');
+  const semantics = await extractSemantics(projectPath, sourceCode.fileCategories, cachedSemantics, changedFiles, deletedFiles);
+
   // Step 3: Run architecture detection
   logger.section('Architecture Analysis');
   const architecture = detectArchitecture(evidence, config.customArchitectureRules);
@@ -103,6 +111,7 @@ export async function runDiscovery(
   const pluginContext: PluginContext = {
     projectPath,
     evidence,
+    ast: AstService,
   };
 
   const contributions: PluginContribution[] = [];
@@ -148,6 +157,7 @@ export async function runDiscovery(
     workflows,
     timeline,
     features,
+    semantics,
     duration,
   };
 }

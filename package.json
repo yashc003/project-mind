@@ -1,6 +1,6 @@
 {
   "name": "project-mind",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deterministic project intelligence and AI handoff generator",
   "type": "module",
   "bin": {
@@ -14,9 +14,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
-    "test": "vitest run",
-    "test:e2e": "vitest run tests/e2e",
-    "test:watch": "vitest",
+    "test": "vitest run --fileParallelism false",
+    "test:e2e": "npm run build && vitest run tests/e2e --fileParallelism false",
+    "test:watch": "vitest --fileParallelism false",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
@@ -47,12 +47,16 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",
     "handlebars": "^4.7.8",
     "ora": "^8.1.0",
-    "simple-git": "^3.27.0"
+    "simple-git": "^3.27.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "0.20.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

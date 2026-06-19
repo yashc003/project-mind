@@ -41,6 +41,7 @@ export interface ExplainContext {
 export interface PluginContext {
   projectPath: string;
   evidence: EvidenceSources;
+  ast?: typeof import('../engines/discovery/ast/AstService.js').AstService;
 }
 
 export interface PackSection {

@@ -49,27 +49,82 @@ const EXPRESS_PLUGIN: ProjectMindPlugin = {
         const directory = file.substring(0, file.lastIndexOf('/')) || '';
         
         const endpoints: string[] = [];
-        if (type === 'controller') {
-          // match app.get('/path') or router.post('/path')
-          const routeRegex = /(app|router)\.(get|post|put|delete|patch)\s*\(\s*["']([^"']+)["']/g;
-          let match;
-          while ((match = routeRegex.exec(content)) !== null) {
-            const method = match[2].toUpperCase();
-            const routePath = match[3];
-            endpoints.push(`${method} ${routePath}`);
+        let usedRegex = true;
 
-            workflows.push({
-              id: crypto.randomBytes(4).toString('hex'),
-              name: `${method} ${routePath}`,
-              description: `Express Route in ${file.split('/').pop()}`,
-              entryPoint: file,
-              dependencyScope: 'file',
-              sourceFile: file.split('/').pop(),
-              components: [],
-              files: [file],
-              confidence: 90,
-              type: 'api-request'
-            });
+        if (type === 'controller') {
+          if (context.ast) {
+            const absolutePath = path.join(context.projectPath, file);
+            const astResult = await context.ast.parseFile(absolutePath);
+            if (astResult) {
+              usedRegex = false;
+              // Build tree-sitter query for express routes
+              const queryStr = `
+                (call_expression
+                  function: (member_expression
+                    object: (identifier) @obj
+                    property: (property_identifier) @method
+                  )
+                  arguments: (arguments (string) @path)
+                )
+              `;
+              try {
+                const matches = context.ast.executeQuery(astResult.tree, astResult.language, queryStr);
+                matches.forEach(match => {
+                  let method = '';
+                  let routePath = '';
+                  let obj = '';
+                  
+                  match.captures.forEach(c => {
+                    if (c.name === 'obj') obj = c.node.text;
+                    if (c.name === 'method') method = c.node.text;
+                    if (c.name === 'path') routePath = c.node.text.replace(/['"\`]/g, '');
+                  });
+
+                  if ((obj === 'app' || obj === 'router') && ['get', 'post', 'put', 'delete', 'patch'].includes(method)) {
+                    endpoints.push(`${method.toUpperCase()} ${routePath}`);
+                    workflows.push({
+                      id: crypto.randomBytes(4).toString('hex'),
+                      name: `${method.toUpperCase()} ${routePath}`,
+                      description: `Express Route in ${file.split('/').pop()}`,
+                      entryPoint: file,
+                      dependencyScope: 'file',
+                      sourceFile: file.split('/').pop(),
+                      components: [],
+                      files: [file],
+                      confidence: 90,
+                      type: 'api-request'
+                    });
+                  }
+                });
+              } catch (e) {
+                // If AST query fails, fallback to regex
+                usedRegex = true;
+              }
+            }
+          }
+
+          if (usedRegex) {
+            // match app.get('/path') or router.post('/path')
+            const routeRegex = /(app|router)\.(get|post|put|delete|patch)\s*\(\s*["']([^"']+)["']/g;
+            let match;
+            while ((match = routeRegex.exec(content)) !== null) {
+              const method = match[2].toUpperCase();
+              const routePath = match[3];
+              endpoints.push(`${method} ${routePath}`);
+  
+              workflows.push({
+                id: crypto.randomBytes(4).toString('hex'),
+                name: `${method} ${routePath}`,
+                description: `Express Route in ${file.split('/').pop()}`,
+                entryPoint: file,
+                dependencyScope: 'file',
+                sourceFile: file.split('/').pop(),
+                components: [],
+                files: [file],
+                confidence: 90,
+                type: 'api-request'
+              });
+            }
           }
         }
 

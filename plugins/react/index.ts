@@ -31,7 +31,7 @@ const REACT_PLUGIN: ProjectMindPlugin = {
     for (const file of sourceFiles) {
       let type: Component['type'] = 'other';
       if (file.includes('hooks/')) type = 'utility'; // Custom Hook
-      else if (file.includes('components/')) type = 'component';
+      else if (file.includes('components/') || file.includes('App.tsx') || file.includes('App.jsx') || file.includes('App.js')) type = 'component';
       else if (file.includes('contexts/')) type = 'other'; // Context
       else if (file.includes('store/')) type = 'other'; // Redux Slice
 
@@ -52,44 +52,111 @@ const REACT_PLUGIN: ProjectMindPlugin = {
       const fs = await import('node:fs');
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
+        let usedRegex = true;
 
-        // Form Submissions
-        const submitRegex = /onSubmit={([^}]+)}/g;
-        let match;
-        while ((match = submitRegex.exec(content)) !== null) {
-          const handler = match[1].replace('() =>', '').trim();
-          workflows.push({
-            id: crypto.randomBytes(4).toString('hex'),
-            name: `Form Submission: ${handler}`,
-            description: `Triggered via onSubmit in ${file.split('/').pop()}`,
-            entryPoint: file,
-            dependencyScope: 'file',
-            sourceFile: file.split('/').pop(),
-            components: [],
-            files: [file],
-            confidence: 95,
-            type: 'ui-flow'
-          });
+        if (context.ast) {
+          const astResult = await context.ast.parseFile(fullPath);
+          if (astResult) {
+            usedRegex = false;
+            // query for JSX attributes
+            const queryStr = `
+              (jsx_attribute
+                (property_identifier) @attr_name
+                (jsx_expression) @handler
+              )
+            `;
+            try {
+              const matches = context.ast.executeQuery(astResult.tree, astResult.language, queryStr);
+              matches.forEach(match => {
+                let attrName = '';
+                let handlerNodeText = '';
+                
+                match.captures.forEach(c => {
+                  if (c.name === 'attr_name') attrName = c.node.text;
+                  if (c.name === 'handler') {
+                    // Tree-sitter JSX expression includes the braces {}
+                    const innerText = c.node.namedChildren[0]?.text || c.node.text.replace(/^{|}$/g, '');
+                    handlerNodeText = innerText;
+                  }
+                });
+
+                if (attrName === 'onSubmit') {
+                  const handler = handlerNodeText.replace('() =>', '').trim();
+                  workflows.push({
+                    id: crypto.randomBytes(4).toString('hex'),
+                    name: `Form Submission: ${handler}`,
+                    description: `Triggered via onSubmit in ${file.split('/').pop()}`,
+                    entryPoint: file,
+                    dependencyScope: 'file',
+                    sourceFile: file.split('/').pop(),
+                    components: [],
+                    files: [file],
+                    confidence: 95,
+                    type: 'ui-flow'
+                  });
+                } else if (attrName === 'onClick') {
+                  const handler = handlerNodeText.replace('() =>', '').trim();
+                  if (handler && !handler.includes('set') && handler.length > 3) {
+                    workflows.push({
+                      id: crypto.randomBytes(4).toString('hex'),
+                      name: `Button Click: ${handler}`,
+                      description: `Triggered via onClick in ${file.split('/').pop()}`,
+                      entryPoint: file,
+                      dependencyScope: 'file',
+                      sourceFile: file.split('/').pop(),
+                      components: [],
+                      files: [file],
+                      confidence: 80,
+                      type: 'ui-flow'
+                    });
+                  }
+                }
+              });
+            } catch (e) {
+              usedRegex = true;
+            }
+          }
         }
 
-        // Button Clicks (heuristic: looks for specific handlers)
-        const clickRegex = /onClick={([^}]+)}/g;
-        while ((match = clickRegex.exec(content)) !== null) {
-          const handler = match[1].replace('() =>', '').trim();
-          // Filter out inline arrow functions that are too simple
-          if (handler && !handler.includes('set') && handler.length > 3) {
+        if (usedRegex) {
+          // Form Submissions
+          const submitRegex = /onSubmit={([^}]+)}/g;
+          let match;
+          while ((match = submitRegex.exec(content)) !== null) {
+            const handler = match[1].replace('() =>', '').trim();
             workflows.push({
               id: crypto.randomBytes(4).toString('hex'),
-              name: `Button Click: ${handler}`,
-              description: `Triggered via onClick in ${file.split('/').pop()}`,
+              name: `Form Submission: ${handler}`,
+              description: `Triggered via onSubmit in ${file.split('/').pop()}`,
               entryPoint: file,
               dependencyScope: 'file',
               sourceFile: file.split('/').pop(),
               components: [],
               files: [file],
-              confidence: 80,
+              confidence: 95,
               type: 'ui-flow'
             });
+          }
+  
+          // Button Clicks (heuristic: looks for specific handlers)
+          const clickRegex = /onClick={([^}]+)}/g;
+          while ((match = clickRegex.exec(content)) !== null) {
+            const handler = match[1].replace('() =>', '').trim();
+            // Filter out inline arrow functions that are too simple
+            if (handler && !handler.includes('set') && handler.length > 3) {
+              workflows.push({
+                id: crypto.randomBytes(4).toString('hex'),
+                name: `Button Click: ${handler}`,
+                description: `Triggered via onClick in ${file.split('/').pop()}`,
+                entryPoint: file,
+                dependencyScope: 'file',
+                sourceFile: file.split('/').pop(),
+                components: [],
+                files: [file],
+                confidence: 80,
+                type: 'ui-flow'
+              });
+            }
           }
         }
       } catch (e) {

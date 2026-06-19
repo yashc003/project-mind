@@ -14,6 +14,7 @@ import {
   computeProgress,
   detectScopeDrift
 } from '../engines/focus/index.js';
+import { generateHandoff } from '../engines/handoff/index.js';
 import logger from '../utils/logger.js';
 import chalk from 'chalk';
 
@@ -83,6 +84,7 @@ focusCommand
     
     updateFocusStatus(memory, status as any);
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     const agent = command.parent?.parent?.opts().agent || 'human';
     await logAgentInteraction(projectPath, agent, 'focus-update', `Status changed to ${status}`);
     logger.success(`Focus status updated to: ${status}`);
@@ -99,6 +101,7 @@ focusCommand
     addBlocker(memory, reason);
     updateFocusStatus(memory, 'blocked');
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     
     const agent = command.parent?.parent?.opts().agent || 'human';
     await logAgentInteraction(projectPath, agent, 'focus-blocked', reason);
@@ -116,6 +119,7 @@ focusCommand
     const idx = parseInt(index, 10);
     removeBlocker(memory, idx);
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     
     const agent = command.parent?.parent?.opts().agent || 'human';
     await logAgentInteraction(projectPath, agent, 'focus-unblocked', `Removed blocker index ${idx}`);
@@ -132,6 +136,7 @@ focusCommand
     
     addSubTask(memory, desc);
     await saveMemory(projectPath, memory);
+    await generateHandoff(projectPath, memory);
     
     const agent = command.parent?.parent?.opts().agent || 'human';
     await logAgentInteraction(projectPath, agent, 'focus-task-add', desc);
@@ -148,6 +153,7 @@ focusCommand
     
     if (completeSubTask(memory, id)) {
       await saveMemory(projectPath, memory);
+      await generateHandoff(projectPath, memory);
       const agent = command.parent?.parent?.opts().agent || 'human';
       await logAgentInteraction(projectPath, agent, 'focus-task-done', id);
       logger.success(`Subtask ${id} marked as done.`);

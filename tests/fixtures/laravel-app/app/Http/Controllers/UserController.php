@@ -1,4 +1,13 @@
 <?php
+
 namespace App\Http\Controllers;
 
-class UserController extends Controller {}
+use Illuminate\Http\Request;
+
+class UserController extends Controller
+{
+    public function index()
+    {
+        return response()->json(['users' => []]);
+    }
+}
