@@ -15,6 +15,29 @@ npx project-mind init
 ```
 
 This single command automatically scans your repository, detects your framework (React, Node, Spring Boot, FastAPI, etc.), and generates a `.project-mind/` directory containing your project's architectural memory graph.
+## 📚 Project Overview
+
+Project-Mind is a **local, AI‑friendly architectural memory engine** that continuously analyzes your codebase, builds a knowledge graph, and stores it in `.project-mind/derived/MEMORY.json`. It enables AI assistants to instantly understand the project's structure, decisions, and active tasks without re‑reading the entire source tree.
+
+### Core Modules
+
+- **Discovery Engine** – Tree‑sitter based AST extraction and evidence collection.
+- **Graph Engine** – Builds the `KnowledgeGraph` and provides an interactive visualizer.
+- **Memory Engine** – Persists the graph, handles delta‑diff updates, and tracks focus.
+- **Plugin Engine** – Framework‑specific adapters (React, NestJS, Spring Boot, etc.).
+- **MCP Server** – Exposes the memory to AI tools via the Model Context Protocol.
+- **IDE Engine** – Injects rules into agentic IDEs (Cursor, Windsurf).
+- **Governance Engine** – Decision ledger and architectural linting.
+- **Handoff Engine** – Generates markdown handoff files (`AI_START_HERE.md`, `WORKFLOWS.md`, …).
+
+---
+
+---
+
+## 📖 Documentation Links
+
+- [Internal Database Schema (SCHEMA.md)](docs/SCHEMA.md) - For AIs looking to query or traverse the `MEMORY.json` database directly.
+- [Architecture Documentation (ARCHITECTURE.md)](docs/ARCHITECTURE.md) - Deep dive into the internal engines, data lifecycle, and module structure.
 
 ---
 
@@ -76,6 +99,23 @@ npx project-mind explain "AuthService"      # Deep-dive into a component
 npx project-mind impact "src/utils/db.ts"   # See what breaks if this file changes
 npx project-mind lint                       # Check for architectural violations
 ```
+## 📜 Full CLI Reference
+
+| Command | Description |
+|---------|-------------|
+| `project-mind init` | Initialise `.project-mind` by scanning the repo |
+| `project-mind update` | Fast incremental update of memory (Git‑aware) |
+| `project-mind handoff` | Regenerate all handoff markdown files |
+| `project-mind start-feature "<name>"` | Begin tracking a new feature/task |
+| `project-mind complete-feature "<name>"` | Mark a feature as completed |
+| `project-mind note "<text>" --decision` | Record an architectural decision |
+| `project-mind why "<query>"` | Explain why a decision/component exists |
+| `project-mind explain "<entity>"` | Deep‑dive into a component, file, or workflow |
+| `project-mind impact "<file>"` | Show what would break if the file changes |
+| `project-mind lint` | Run architectural linting against decisions |
+| `project-mind install-ide` | Install AI rules into supported IDEs |
+| `project-mind mcp` | Start the MCP server for AI tool integration |
+| `project-mind pack` | Bundle the memory for sharing or backup |
 
 ---
 

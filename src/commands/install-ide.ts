@@ -63,7 +63,7 @@ export const installIdeCommand = new Command('install-ide')
 
     console.log();
     const selectedProviders = await checkbox({
-      message: 'Select IDEs to install Project-Mind integration:',
+      message: 'Select IDEs to install Project-Mind integration (Press <Space> to select, <Enter> to confirm):',
       choices: choices,
     });
 

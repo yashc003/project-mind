@@ -1,74 +1,100 @@
-# Project-Mind Architecture
+# 🏗️ Project-Mind Architecture
 
-Project-Mind operates as the continuous intelligence layer for external AI agents, designed with modularity, persistence, and extensibility in mind.
-
-## Core Design Principles
-
-1. **Local-First State:** The `.project-mind/` directory acts as the single source of truth for the project context.
-2. **Deterministic Schemas:** The JSON models (e.g., `MEMORY.json`) are strictly versioned (`v1.0.0`) to avoid parsing errors by AI models.
-3. **Pluggability:** The engine supports dynamically loaded plugins to evaluate metrics, enforce policies, or connect to third-party tools.
+Project-Mind is an intelligent architectural memory engine for AI coding assistants. It operates locally by performing deep semantic analysis of repositories and constructing a persistent Knowledge Graph that AIs can query via the Model Context Protocol (MCP) or the CLI.
 
 ---
 
-## 📂 The `.project-mind/` Directory
+## 🛠️ How It Is Built (Tech Stack)
 
-When initialized via `project-mind init`, the CLI scaffolds the following layout in your project root:
+- **Language:** TypeScript (strict mode)
+- **Runtime:** Node.js (v18+)
+- **Parser:** `web-tree-sitter` – a WebAssembly‑based AST parser supporting many languages (TypeScript, JavaScript, Python, Java, PHP, etc.)
+- **Bundler:** `tsup` – fast ESM/CJS bundling for the CLI and server
+- **Transport:** STDIO for the MCP server (JSON‑RPC)
+- **Storage:** Local JSON files under `.project-mind/derived/` (primarily `MEMORY.json`)
+- **Template Engine:** Handlebars for generating human‑readable handoff documents (`AI_START_HERE.md`, `WORKFLOWS.md`, etc.)
 
-```text
-.project-mind/
-├── MEMORY.json          # Source of truth: architecture, workflows, timelines, and config.
-├── config.json          # Governance policies, tech debt exceptions, and project settings.
-├── plugins.json         # Array of absolute paths pointing to active plugins.
-├── plugins/             # Optional directory for locally defined scripts/plugins.
-├── AI_START_HERE.md     # Auto-generated context dump for AI initialization.
-├── HANDOFF.md           # Condensed markdown designed for context windows.
-├── PROJECT_CONTEXT.md   # Broad structural overview.
-├── GOVERNANCE.json      # Evaluation metrics from the latest `lint` command.
-└── GOVERNANCE.md        # Human-readable version of the governance report.
+---
+
+## 🧩 Core Modules & Engines
+
+### 1. Discovery Engine (`src/engines/discovery/`)
+- **AST Parsing:** Uses Tree‑sitter to parse source files into abstract syntax trees, extracting semantic entities (classes, functions, hooks, interfaces, enums).
+- **Evidence Collection:** Scans Git history, build files, documentation, and language‑specific metadata.
+- **Confidence Scoring:** Assigns confidence values to each extracted entity based on evidence quality.
+
+### 2. Graph Engine (`src/engines/graph/`)
+- **Knowledge Graph:** Transforms extracted semantics into a directed graph of nodes (files, components, workflows) and edges (`depends_on`, `implements`, `part_of`).
+- **Viewer:** Generates an interactive HTML visualizer (`GRAPH_VIEWER.html`) for quick manual inspection.
+
+### 3. Memory Engine (`src/engines/memory/`)
+- **Persistent Store:** Writes the consolidated state to `.project-mind/derived/MEMORY.json`.
+- **Delta‑Diffing:** On subsequent runs, only updates changed files using Git diffs, making `project-mind update` fast.
+- **Focus Tracking:** Holds the `CurrentFocus` object (active feature, status, blockers, modules, sub‑tasks, linked commits).
+
+### 4. Plugin Engine (`src/engines/plugin/`)
+- **Framework‑Specific Rules:** Dynamically loads plugins for frameworks (React, SvelteKit, NestJS, Express, FastAPI, Django, Laravel, Spring Boot).
+- **Merging Contributions:** Each plugin contributes additional components, endpoints, and workflow definitions that are merged into the global architecture model.
+
+### 5. MCP Server (`src/engines/mcp/`)
+- **Model Context Protocol:** Exposes Project‑Mind’s memory as a set of JSON‑RPC tools (`search`, `query`, `decisions`, `focus`, etc.).
+- **Tools:** `project-mind-search` (semantic lookup) and `project-mind-query` (graph traversal) allow AI agents to explore the codebase without flooding the context window.
+
+### 6. IDE Engine (`src/engines/ide/`)
+- **IDE Integration:** Detects installed IDEs (Cursor, Windsurf, Copilot, etc.) and injects rule files (`.cursorrules`, `.windsurfrules`, etc.) that tell the AI to always consult Project‑Mind before generating code.
+
+### 7. Governance & Decision Engine (`src/engines/governance/`)
+- **Decision Ledger:** Stores immutable decisions (`DECISIONS.md`) with rationale, tags, and impacted components.
+- **Linting:** The `lint` command compares current code against the decision ledger to surface architectural violations.
+
+### 8. Handoff Engine (`src/engines/handoff/`)
+- **Handlebars Templates:** Renders `AI_START_HERE.md`, `PROJECT_CONTEXT.md`, `HANDOFF.md`, and the newly added `WORKFLOWS.md` from the memory model.
+- **Purpose:** Provides a concise “system prompt” for any AI assistant entering the project.
+
+---
+
+## 🔄 Data Lifecycle
+1. **Initialization (`project-mind init`):**
+   - Runs the Discovery Engine to scan the repo.
+   - Builds the Knowledge Graph.
+   - Persists the result to `MEMORY.json`.
+   - Generates handoff markdown files.
+2. **Continuous Updates (`project-mind update`):**
+   - Calculates a delta diff against the last commit.
+   - Updates only the changed parts of the graph and memory.
+3. **Interaction (`project-mind start-feature`, `project-mind note`, etc.):**
+   - Mutates the `CurrentFocus` and `Decision` objects.
+   - Immediately persists changes to `MEMORY.json`.
+4. **MCP Queries:**
+   - AI agents call tools like `search` or `query` to retrieve relevant nodes, workflows, or decisions.
+5. **Handoff Regeneration:**
+   - `project-mind handoff` re‑renders all markdown artifacts, keeping AI context up‑to‑date.
+
+---
+
+## 📦 Modules Overview (Directory Structure)
+```
+src/
+├─ commands/          # CLI entry points (init, update, handoff, etc.)
+├─ engines/
+│  ├─ discovery/      # AST extraction and evidence collection
+│  ├─ graph/          # Knowledge‑graph construction & viewer
+│  ├─ memory/         # Persistence, delta‑diffing, focus tracking
+│  ├─ plugin/         # Framework‑specific plugins
+│  ├─ mcp/            # Model Context Protocol server & tools
+│  ├─ ide/            # IDE rule injection
+│  ├─ governance/     # Decision ledger & linting
+│  └─ handoff/        # Handlebars templates for AI handoffs
+├─ utils/             # Helper functions (logging, FS helpers, etc.)
+└─ types/             # Shared TypeScript interfaces (ProjectMemory, Decision, etc.)
 ```
 
-### `MEMORY.json`
+---
 
-The central artifact of Project-Mind. It contains the complete schema defined in `src/engines/memory/schema.ts`.
-
-**Schema Versioning:** The `schemaVersion` field (currently `1.0.0`) ensures robust schema migration. The `project-mind repair` command utilizes `migration.ts` to upgrade older schemas seamlessly.
+## 📚 Further Reading
+- **SCHEMA Documentation:** See `docs/SCHEMA.md` for a full TypeScript‑style definition of all JSON structures stored in `MEMORY.json`.
+- **Architecture Deep‑Dive:** The above sections provide a high‑level map; for implementation‑level details, explore each engine’s source files.
 
 ---
 
-## ⚙️ Execution Flow
-
-Project-Mind's CLI triggers the orchestration engine, which passes context to sub-engines. 
-
-1. **CLI (`src/cli.ts`)**: Parses arguments via Commander.js and delegates to specific command handlers (`src/commands/`).
-2. **Discovery Engine (`src/engines/discovery/`)**: Scans git history, files, dependencies, and heuristics to build an internal representation.
-3. **Memory Engine (`src/engines/memory/`)**: Merges the discovery output with historical knowledge, handling persistence and atomic IO updates.
-4. **Governance Engine (`src/engines/governance/`)**: Evaluates policies defined in `config.json` against the current memory state, producing a pass/fail/warn report.
-5. **Handoff Engine (`src/engines/handoff/`)**: Compiles `MEMORY.json` into markdown documents using Handlebars templates.
-
----
-
-## 🧩 Plugin System
-
-Plugins allow you to extend the Discovery and Governance capabilities of Project-Mind.
-
-**Loading Logic:**
-The plugin registry (`src/engines/plugin/registry.ts`) reads `.project-mind/plugins.json` and uses dynamic imports to load default exports. 
-
-*Note: For Node environments, plugin paths pointing to `.ts` files currently require a bundler or `tsx` loader. It is recommended to compile custom plugins to `.js` before linking.*
-
-### Example Plugin
-
-```typescript
-export default {
-  name: 'custom-scanner',
-  version: '1.0.0',
-  description: 'A custom logic scanner',
-  async execute(memory, ctx) {
-    // Modify memory or return context
-    return {
-      confidence: 100,
-      evidence: ['Found a custom config file!']
-    };
-  }
-};
-```
+*Generated by Project‑Mind v1.1.0 on {{datetime updatedAt}}*

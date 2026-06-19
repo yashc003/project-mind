@@ -65,7 +65,7 @@ export const handoffCommand = new Command('handoff')
       logger.bullet(paths.aiStartHere);
       logger.bullet(paths.projectContext);
       logger.bullet(paths.handoff);
-      logger.bullet(paths.decisions);
+      logger.bullet(paths.workflowsMd);
       logger.blank();
       logger.info('Share AI_START_HERE.md with any AI agent for instant project context.');
     } catch (err) {
