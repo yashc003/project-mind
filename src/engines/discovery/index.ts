@@ -26,6 +26,7 @@ import { AstService } from './ast/AstService.js';
 import { extractSemantics } from './semantics.js';
 import { mergeContributions } from '../plugin/merge.js';
 import type { PluginContribution, PluginContext } from '../../types/plugin.js';
+import type { SemanticEntity } from '../../types/index.js';
 import { computeConfidence } from '../../utils/confidence.js';
 import { fileExists } from '../../utils/fs.js';
 import logger from '../../utils/logger.js';

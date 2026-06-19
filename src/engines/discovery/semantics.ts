@@ -124,7 +124,7 @@ export async function extractSemantics(
 
         for (let i = 0; i < searchNode.childCount; i++) {
           const child = searchNode.child(i);
-          if (child.type === 'decorator') {
+          if (child && child.type === 'decorator') {
             const decText = child.text.replace('@', '').split('(')[0];
             if (decText) decorates.push(`decorator_${decText}`);
           }
@@ -132,7 +132,7 @@ export async function extractSemantics(
 
         for (let i = 0; i < classNode.childCount; i++) {
           const child = classNode.child(i);
-          if (child.type === 'class_heritage') {
+          if (child && child.type === 'class_heritage') {
             if (child.text.startsWith('implements')) {
               const ids = child.text.replace('implements', '').split(',').map((s: string) => s.trim());
               ids.forEach((id: string) => implementsIds.push(`interface_${id}_${file}`));
@@ -248,7 +248,7 @@ export async function extractSemantics(
             if (body) {
               for (let i = 0; i < body.childCount; i++) {
                 const child = body.child(i);
-                if (child.type === 'enum_assignment' || child.type === 'property_identifier') {
+                if (child && (child.type === 'enum_assignment' || child.type === 'property_identifier')) {
                    signatures.push({
                      name: child.text.split('=')[0].trim(),
                      kind: 'enum_member',

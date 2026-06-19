@@ -128,11 +128,14 @@ export function registerResources(server: McpServer, projectPath: string): void 
     'component',
     'project-mind://component/{name}',
     { mimeType: 'application/json', description: 'Detail view of a specific architectural component' },
-    async (uri, { name }) => {
+    async (uri) => {
+      const nameMatch = uri.href.match(/project-mind:\/\/component\/(.+)/);
+      const name = nameMatch ? nameMatch[1] : '';
+
       const memory = await loadMemory(projectPath);
       if (!memory) throw new Error('Memory not initialized');
 
-      if (typeof name !== 'string') {
+      if (!name) {
         throw new Error('Component name is required');
       }
 

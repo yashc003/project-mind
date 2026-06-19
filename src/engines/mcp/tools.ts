@@ -33,11 +33,16 @@ export function registerTools(server: McpServer, projectPath: string): void {
 
       const decision: Decision = {
         id: crypto.randomUUID(),
-        date: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
         title,
+        description: '',
+        rejected: [],
+        source: 'manual',
         reason: rationale,
         tags: tags || [],
         confidence: 90, // Assume deliberate tool call is high confidence
+        impactedFeatures: [],
+        impactedComponents: [],
       };
 
       memory.decisions.push(decision);
@@ -65,11 +70,15 @@ export function registerTools(server: McpServer, projectPath: string): void {
       const focus: CurrentFocus = {
         id: crypto.randomBytes(4).toString('hex'),
         feature: name,
-        intent: problem,
+        task: problem,
+        status: 'in-progress',
         startedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         expectedModules: modules || [],
+        actualModules: [],
         subTasks: [],
-        openBlockers: [],
+        blockers: [],
+        linkedCommits: [],
       };
 
       if (memory.focusHistory.active) {
@@ -80,7 +89,7 @@ export function registerTools(server: McpServer, projectPath: string): void {
       memory.focusHistory.active = focus;
       await saveMemory(projectPath, memory);
       await logAgentInteraction(projectPath, 'mcp-agent', 'Start Feature', `Started feature: ${name}`);
-      await generateHandoff(memory, projectPath);
+      await generateHandoff(projectPath, memory);
 
       return {
         content: [{ type: 'text', text: `Successfully started feature: ${name}. Handoff document generated.` }],
@@ -110,7 +119,7 @@ export function registerTools(server: McpServer, projectPath: string): void {
 
       await saveMemory(projectPath, memory);
       await logAgentInteraction(projectPath, 'mcp-agent', 'Complete Feature', `Completed feature: ${featureName}`);
-      await generateHandoff(memory, projectPath);
+      await generateHandoff(projectPath, memory);
 
       return {
         content: [{ type: 'text', text: `Successfully completed feature: ${featureName}` }],
