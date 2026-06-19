@@ -1,4 +1,4 @@
-# 🧠 Project-Mind (v1.1.0)
+# 🧠 Project-Mind (v1.1.1)
 
 **The Long-Term Memory (Hippocampus) for AI Coding Agents.**
 
